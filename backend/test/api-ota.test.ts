@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { otaTargets, users } from '../src/db/schema';
+import { firmwareReleases, otaRollouts, otaTargets, users } from '../src/db/schema';
 import { pumpRollouts } from '../src/modules/ota/ota.service';
 import { connectBoard, resetDb, signUp, startApp, type TestApp, waitFor } from './helpers';
 
@@ -136,6 +136,23 @@ describe('OTA', () => {
     expect(board.version).toBe('1.1.0');
     const [c] = (await owner.client.get(`/homes/${owner.homeId}/controllers`)).body.controllers;
     expect(c.firmwareVersion).toBe('1.1.0');
+    await board.close();
+  });
+
+  it('concurrent pacing passes offer a pending board only once', async () => {
+    const owner = await signUp(t, 'Owner');
+    const { board, controllerId } = await connectBoard(t, owner.client, owner.homeId, { 1: 'switch' });
+    const [release] = await t.ctx.db
+      .insert(firmwareReleases)
+      .values({ model: 'voltix-esp32', version: '9.9.9', filePath: 'none', size: 1, sha256: 'a'.repeat(64) })
+      .returning();
+    const [rollout] = await t.ctx.db.insert(otaRollouts).values({ releaseId: release!.id }).returning();
+    await t.ctx.db.insert(otaTargets).values({ rolloutId: rollout!.id, controllerId });
+
+    // Rollout start, board reconnects and the minutely job can all pump at the same moment.
+    await Promise.all([pumpRollouts(t.ctx), pumpRollouts(t.ctx), pumpRollouts(t.ctx)]);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(board.received.filter((p) => p.action === 'otaUpdateAvailable')).toHaveLength(1);
     await board.close();
   });
 

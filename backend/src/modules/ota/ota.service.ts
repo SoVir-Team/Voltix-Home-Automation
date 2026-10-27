@@ -52,6 +52,15 @@ async function offer(ctx: AppContext, rolloutId: string, controllerId: string): 
     .innerJoin(controllers, eq(controllers.id, controllerId))
     .where(eq(otaRollouts.id, rolloutId));
   if (!row) return false;
+  // Claim the target before sending: several pacing passes can run at once (rollout start, board reconnect,
+  // the minutely job), and only one of them may offer.
+  const target = and(eq(otaTargets.rolloutId, rolloutId), eq(otaTargets.controllerId, controllerId));
+  const claimed = await ctx.db
+    .update(otaTargets)
+    .set({ status: 'offered', progress: 0, error: null, offeredAt: new Date(), updatedAt: new Date() })
+    .where(and(target, eq(otaTargets.status, 'pending')))
+    .returning({ controllerId: otaTargets.controllerId });
+  if (!claimed.length) return false;
   const url = `${ctx.env.API_ORIGIN}/api/v1/ota/download/${downloadToken(ctx, row.release.id, controllerId)}`;
   const sent = ctx.services.gateway.send(controllerId, {
     deviceId: row.keyId,
@@ -64,11 +73,10 @@ async function offer(ctx: AppContext, rolloutId: string, controllerId: string): 
       forceUpdate: false,
     },
   });
-  if (!sent) return false;
-  await ctx.db
-    .update(otaTargets)
-    .set({ status: 'offered', progress: 0, error: null, offeredAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(otaTargets.rolloutId, rolloutId), eq(otaTargets.controllerId, controllerId)));
+  if (!sent) {
+    await ctx.db.update(otaTargets).set({ status: 'pending', updatedAt: new Date() }).where(target);
+    return false;
+  }
   return true;
 }
 

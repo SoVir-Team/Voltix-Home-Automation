@@ -173,18 +173,39 @@ async function main() {
   }
 
   // Live sensor data.
-  const [living, bedroom, kitchen, entrance] = boards as [VirtualBoard, VirtualBoard, VirtualBoard, VirtualBoard];
-  const wave = (base: number, amp: number) => base + Math.sin(Date.now() / 900_000) * amp + Math.random() * 0.3;
+  const [living, bedroom, kitchen, entrance] = boards as [
+    VirtualBoard,
+    VirtualBoard,
+    VirtualBoard,
+    VirtualBoard,
+  ];
+  const wave = (base: number, amp: number) =>
+    base + Math.sin(Date.now() / 900_000) * amp + Math.random() * 0.3;
   const tick = () => {
-    living.event(7, 'currentTemperature', { temperature: +wave(26, 1.5).toFixed(1), humidity: Math.round(wave(58, 4)) });
-    bedroom.event(4, 'currentTemperature', { temperature: +wave(23, 1).toFixed(1), humidity: Math.round(wave(52, 3)) });
-    kitchen.event(3, 'powerUsage', { power: Math.round(wave(420, 180)), voltage: +wave(231, 2).toFixed(1), current: +wave(1.8, 0.6).toFixed(2) });
-    kitchen.event(4, 'airQuality', { pm1: Math.round(wave(9, 3)), pm2_5: Math.round(wave(22, 8)), pm10: Math.round(wave(38, 10)) });
+    living.event(7, 'currentTemperature', {
+      temperature: +wave(26, 1.5).toFixed(1),
+      humidity: Math.round(wave(58, 4)),
+    });
+    bedroom.event(4, 'currentTemperature', {
+      temperature: +wave(23, 1).toFixed(1),
+      humidity: Math.round(wave(52, 3)),
+    });
+    kitchen.event(3, 'powerUsage', {
+      power: Math.round(wave(420, 180)),
+      voltage: +wave(231, 2).toFixed(1),
+      current: +wave(1.8, 0.6).toFixed(2),
+    });
+    kitchen.event(4, 'airQuality', {
+      pm1: Math.round(wave(9, 3)),
+      pm2_5: Math.round(wave(22, 8)),
+      pm10: Math.round(wave(38, 10)),
+    });
   };
   tick();
   setInterval(tick, 15_000);
   setInterval(() => {
-    if (Math.random() < 0.3) entrance.event(3, 'motion', { state: Math.random() < 0.5 ? 'detected' : 'notDetected' });
+    if (Math.random() < 0.3)
+      entrance.event(3, 'motion', { state: Math.random() < 0.5 ? 'detected' : 'notDetected' });
   }, 45_000);
   console.log('Demo running. Ctrl+C to stop.');
 }

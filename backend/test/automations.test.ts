@@ -53,6 +53,8 @@ describe('scenes, automations and energy', () => {
     expect(created.status).toBe(201);
     const id = created.body.automation.id;
     const engine = t.ctx.services.automations;
+    // This test drives the clock itself; a background tick in flight would make tick() a silent no-op.
+    engine.stop();
     const row = async () => (await t.ctx.db.select().from(automations).where(eq(automations.id, id)))[0]!;
 
     const first = await row();
@@ -73,6 +75,7 @@ describe('scenes, automations and energy', () => {
     await new Promise((r) => setTimeout(r, 200));
     expect(board.received.length).toBe(before);
     await board.close();
+    await engine.start();
   });
 
   it('device triggers use hysteresis and the loop guard stops ping-pong chains', async () => {

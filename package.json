@@ -20,6 +20,7 @@
     "build": "npm run build -w @voltix/backend && npm run build -w @voltix/frontend",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:firmware": "node firmware/test/native/run.mjs",
     "lint": "biome check .",
     "format": "biome check --write ."
   },

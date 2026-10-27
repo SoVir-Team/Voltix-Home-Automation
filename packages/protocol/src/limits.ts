@@ -1,4 +1,4 @@
-/** Shared protocol constants. Firmware mirrors these in lib/Voltix/src/Limits.h. */
+/** Shared protocol constants. Firmware mirrors these in firmware/lib/Voltix/src/VoltixLimits.h. */
 export const PAYLOAD_VERSION = 2;
 export const SIGNATURE_VERSION = 1;
 

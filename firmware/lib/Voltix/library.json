@@ -1,0 +1,13 @@
+{
+  "name": "Voltix",
+  "version": "1.0.0",
+  "description": "Connects an ESP32 to the Voltix home automation cloud over signed WSS.",
+  "keywords": "voltix, home automation, websocket, esp32",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "dependencies": [
+    { "owner": "bblanchon", "name": "ArduinoJson", "version": "^7.2.1" },
+    { "owner": "links2004", "name": "WebSockets", "version": "^2.6.1" },
+    { "owner": "tzapu", "name": "WiFiManager", "version": "^2.0.17" }
+  ]
+}
