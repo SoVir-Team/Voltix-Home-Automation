@@ -178,7 +178,7 @@ struct VoltixInternals {
     for (uint8_t i = 0; i < v().channelCount_; i++) {
       VoltixChannel &c = v().channels_[i];
       uint8_t s = savedState[c.number - 1];
-      c.powerOn = pob[c.number - 1] <= VOLTIX_POWER_ON_CLOUD ? pob[c.number - 1] : VOLTIX_POWER_ON_LAST;
+      c.powerOn = pob[c.number - 1] <= VOLTIX_POWER_ON_CLOUD ? pob[c.number - 1] : (uint8_t)VOLTIX_POWER_ON_LAST;
       c.level = (s & 0x7f) <= 100 ? (int8_t)(s & 0x7f) : -1;
       c.on = c.powerOn != VOLTIX_POWER_ON_OFF && (s & 0x80);
       writeRelay(c);

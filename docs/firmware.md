@@ -13,10 +13,11 @@ ESP32 firmware for Voltix boards, built with PlatformIO and the Arduino framewor
 `npm run test:firmware` compiles it natively and checks it against the shared test vectors. That part is
 exactly the code that ships.
 
-**Not yet built here:** the ESP32-specific part (`Voltix.cpp`). This machine has no ESP32 toolchain. Before the
-first release:
-1. Run `pio run` once.
-2. Go through the hardware checklist below on a real board.
+**Built:** the whole firmware compiles with PlatformIO (espressif32 6.13, Arduino core 2.0.17) with no warnings
+under `-Wall -Wextra`. It uses 17% of RAM and 55% of one OTA slot. A sketch from the Templates page generator
+also compiles against the SDK.
+
+**Not yet run on hardware.** Before the first release, go through the hardware checklist below on a real board.
 
 ## Build and flash
 
@@ -29,10 +30,14 @@ pio run -t upload           # flash over USB
 pio device monitor          # serial log at 115200
 ```
 
-Dependencies (resolved by PlatformIO):
-- ArduinoJson 7
-- links2004/WebSockets 2.6
-- tzapu/WiFiManager 2.0
+Dependencies (resolved by PlatformIO; versions from the last build):
+- ArduinoJson 7.4
+- links2004/WebSockets 2.7
+- tzapu/WiFiManager 2.0.17
+
+The first build downloads about 1 GB of toolchain and framework. On a slow link, pip inside PlatformIO can time
+out fetching esptool's dependencies ("No matching distribution found for cryptography"). If that happens,
+delete `~/.platformio/packages/tool-esptoolpy` and rerun with `PIP_DEFAULT_TIMEOUT=300 pio run`.
 
 The `min_spiffs` partition table gives two OTA slots, about 1.9 MB each.
 
