@@ -105,7 +105,9 @@ export class VirtualBoard extends EventEmitter {
   }
 
   private send(p: Payload): void {
-    this.ws?.send(encodeMessage(p, this.opts.secret));
+    // A message can arrive on the old socket while a reconnect is under way; drop the reply, as a board would.
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    this.ws.send(encodeMessage(p, this.opts.secret));
   }
 
   private onMessage(text: string): void {
