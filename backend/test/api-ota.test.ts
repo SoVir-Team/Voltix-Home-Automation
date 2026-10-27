@@ -161,3 +161,16 @@ describe('OTA', () => {
     expect([401, 403, 404]).toContain(res.statusCode);
   });
 });
+
+describe('platform admin', () => {
+  it('admin routes refuse non-admins however the path is spelled', async () => {
+    const user = await signUp(t);
+    // %61 = 'a': the router decodes it, so a guard on the raw URL would let this through
+    for (const path of ['/admin/stats', '/%61dmin/stats', '/admin/%75sers', '/%61dmin/audit']) {
+      expect((await user.client.get(path)).status, path).toBe(403);
+    }
+    await t.ctx.db.update(users).set({ isPlatformAdmin: true }).where(eq(users.id, user.userId));
+    await user.client.post('/auth/refresh');
+    expect((await user.client.get('/%61dmin/stats')).status).toBe(200);
+  });
+});

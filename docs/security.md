@@ -18,12 +18,38 @@ What protects whom, and what is left to the operator.
 | Oversized or malformed input                  | zod validation on every route and every WebSocket message; 8 KB device frames, 4 KB browser frames, 4 MB firmware uploads                                                                                   |
 | Abuse by a misbehaving board                  | Per-device event token bucket, telemetry throttling, 10 invalid messages close the socket                                                                                                                   |
 | Board setup secret sniffed over the air       | The setup Wi-Fi is open, but only while the portal runs (during setup, or 5 min after a failed Wi-Fi join). Regenerate the secret if setup happened somewhere untrusted                                     |
+| Script injection in the web app               | React escapes all output (no raw HTML anywhere). A Content-Security-Policy allows scripts and connections only from the app's own origin, and blocks framing and plugins. HSTS in production                |
+| Phishing via a crafted sign-in link           | `?next=` after sign-in is parsed as a URL and followed only when it stays on the app's origin                                                                                                               |
 
 Every security-relevant action goes to `audit_log`, kept for one year: logins, password and session changes,
 API keys, members and invites, board secrets, firmware and rollouts, admin changes. Platform admins see it
 under Admin → Audit.
 
 Logs redact authorization headers, cookies, passwords and secrets.
+
+### Known limits (accepted)
+
+- **Access tokens live out their 15 minutes.** Disabling a user, removing admin rights or resetting a
+  password revokes every refresh token at once, but an already-issued access token keeps working until it
+  expires. Home membership is checked on every request, so removing someone from a home is immediate.
+- **Browser live updates** check membership when a home is subscribed. Someone removed from a home keeps
+  receiving that home's live events until their page reconnects (at most until their session ends).
+- **Board handshake replay.** A captured handshake could be replayed within its 60 s window to take over
+  the board's connection. Capturing one needs a TLS break, and the replayer still can't sign messages, so
+  it can't control anything or fake events.
+- **Registration says when an email is taken.** That is a deliberate usability trade-off; the route is
+  rate-limited (10/min per IP). Password reset gives the same answer either way.
+- **CSP allows inline scripts** (`'unsafe-inline'`). Next.js's bootstrap scripts are inline; nonces would
+  make every page server-rendered on each request.
+
+### Review log
+
+- 2026-10-27, full review against the OWASP Top 10 checklist. Fixed:
+  - Admin routes could be reached by non-admins through a percent-encoded path (`/api/v1/%61dmin/…`); the
+    guard compared the raw URL. Now every route in the admin module requires a platform admin; test added.
+  - Open redirect after sign-in via a tab or newline in `?next=`.
+  - The web app sent no CSP.
+  - `npm audit --omit=dev`: no known vulnerabilities.
 
 ## Operator responsibilities
 

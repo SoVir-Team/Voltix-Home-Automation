@@ -101,7 +101,13 @@ export function deviceArea(type: string): 'locks' | 'lighting' | 'climate' | nul
   return null;
 }
 
-/** Only follow same-site relative paths after sign-in (no open redirects like //evil.com or /\evil.com). */
+/**
+ * Only follow same-site paths after sign-in. Parse instead of pattern-matching: URL parsers drop tabs and
+ * newlines, so "/\t/evil.com" becomes //evil.com (as do //evil.com and /\evil.com).
+ */
 export function safeNext(next: string | null): string {
-  return next && /^\/(?![/\\])/.test(next) ? next : '/';
+  if (!next?.startsWith('/')) return '/';
+  const base = 'https://voltix.invalid';
+  const url = new URL(next, base);
+  return url.origin === base ? url.pathname + url.search + url.hash : '/';
 }

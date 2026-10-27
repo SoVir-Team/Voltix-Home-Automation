@@ -11,9 +11,9 @@ import { revokeAllSessions } from '../auth/tokens';
 
 /** Platform operations for Voltix staff (is_platform_admin). */
 export const adminRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (app, { ctx }) => {
-  app.addHook('onRequest', async (req) => {
-    if (req.url.startsWith('/api/v1/admin/')) requirePlatformAdmin(req);
-  });
+  // Scoped to this plugin's routes. Never test req.url here: it is the raw path, so /api/v1/%61dmin/... would
+  // route to /admin/... while slipping past a prefix check.
+  app.addHook('onRequest', async (req) => requirePlatformAdmin(req));
 
   app.get('/admin/stats', { schema: { tags: ['admin'] } }, async () => {
     const [u] = await ctx.db.select({ n: count() }).from(users);
