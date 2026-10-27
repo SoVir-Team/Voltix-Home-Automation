@@ -1,5 +1,6 @@
 #include "VoltixProtocol.h"
 
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 
@@ -124,6 +125,27 @@ std::string handshakeSignature(const std::string &secret, const char *keyId, uin
   snprintf(buf, sizeof buf, "\n%lu", (unsigned long)ts);
   data += buf;
   return hmacBase64(secret, data.data(), data.size());
+}
+
+std::string localPinVerifier(const std::string &secret, const char *pin) {
+  std::string data = std::string("local-pin:") + pin;
+  return hmacBase64(secret, data.data(), data.size());
+}
+
+static bool equalsIgnoreCase(const char *a, const char *b, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) return false;
+  }
+  return true;
+}
+
+bool localHostAllowed(const char *host, const char *ip, const char *mdnsHost) {
+  if (!host || !*host) return false;
+  size_t n = strlen(host);
+  if (n > 3 && !strcmp(host + n - 3, ":80")) n -= 3;
+  if (strlen(ip) == n && !strncmp(host, ip, n)) return true;
+  size_t m = strlen(mdnsHost);
+  return m && n == m + 6 && equalsIgnoreCase(host, mdnsHost, m) && equalsIgnoreCase(host + m, ".local", 6);
 }
 
 bool ReplayGuard::accept(const char *type, const char *replyToken, uint32_t now) {

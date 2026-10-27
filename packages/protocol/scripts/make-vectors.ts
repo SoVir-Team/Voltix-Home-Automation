@@ -3,7 +3,7 @@
  * firmware's native unit tests, so both sides provably sign the same bytes.
  */
 import { writeFileSync } from 'node:fs';
-import { encodeMessage, handshakeSignature, hmacBase64 } from '../src/node';
+import { encodeMessage, handshakeSignature, hmacBase64, localPinVerifier } from '../src/node';
 
 const secret = 'test-secret-0123456789abcdef0123456789abcdef';
 const base = { clientId: 'web', createdAt: 1767225600, deviceId: 'dev_0001', replyToken: 'rt-0001' };
@@ -51,6 +51,7 @@ const vectors = {
     signature: handshakeSignature(secret, 'vxc_test', 1767225600),
   },
   plain: { data: 'hello', hmac: hmacBase64(secret, 'hello') },
+  localPin: { pin: '246810', verifier: localPinVerifier(secret, '246810') },
 };
 
 writeFileSync(new URL('../test-vectors.json', import.meta.url), `${JSON.stringify(vectors, null, 2)}\n`);

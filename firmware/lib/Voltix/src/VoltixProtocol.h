@@ -30,6 +30,31 @@ std::string encodeMessage(const std::string &rawPayload, const std::string &secr
 bool verifySignature(const char *msg, size_t n, const std::string &secret, Span &payload);
 // HMAC(secret, "<keyId>\n<ts>") for the x-voltix-sig handshake header.
 std::string handshakeSignature(const std::string &secret, const char *keyId, uint32_t ts);
+// HMAC(secret, "local-pin:<pin>"): what the cloud sends as localPinHash, so the board never stores the PIN.
+std::string localPinVerifier(const std::string &secret, const char *pin);
+
+// The local page only answers to its own names (blocks DNS rebinding): "<ip>" or "<mdnsHost>.local",
+// optionally with ":80", any letter case.
+bool localHostAllowed(const char *host, const char *ip, const char *mdnsHost);
+
+// Five wrong PINs lock the local page's login for five minutes (for everyone: a 6-digit PIN then takes
+// years to guess). millis()-based, wrap-safe.
+class PinLockout {
+ public:
+  static const uint8_t kMaxFails = 5;
+  static const uint32_t kLockMs = 5UL * 60 * 1000;
+  bool locked(uint32_t nowMs) const { return fails_ >= kMaxFails && nowMs - lockedAt_ < kLockMs; }
+  uint32_t secondsLeft(uint32_t nowMs) const { return locked(nowMs) ? (kLockMs - (nowMs - lockedAt_)) / 1000 + 1 : 0; }
+  void failed(uint32_t nowMs) {
+    if (fails_ >= kMaxFails) fails_ = 0;  // an expired lock: five fresh tries
+    if (++fails_ == kMaxFails) lockedAt_ = nowMs;
+  }
+  void succeeded() { fails_ = 0; }
+
+ private:
+  uint8_t fails_ = 0;
+  uint32_t lockedAt_ = 0;
+};
 
 inline bool isFresh(int64_t createdAt, int64_t now) {
   int64_t d = now - createdAt;

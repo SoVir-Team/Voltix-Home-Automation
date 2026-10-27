@@ -21,6 +21,8 @@ const view = (c: typeof controllers.$inferSelect, live: boolean) => ({
   mac: c.mac,
   firmwareVersion: c.firmwareVersion,
   ip: c.ip,
+  lanIp: c.lanIp,
+  localName: c.localName,
   online: live,
   lastSeenAt: c.lastSeenAt,
   createdAt: c.createdAt,

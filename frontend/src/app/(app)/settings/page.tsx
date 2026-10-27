@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, House, LocateFixed, Plus, Trash2 } from 'lucide-react';
+import { Check, House, LocateFixed, Plus, Trash2, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useHome } from '@/components/home-context';
@@ -35,7 +35,10 @@ export default function SettingsPage() {
       <PageHeader title="Home settings" back="/profile" />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         {/* Re-mount the form when switching homes so fields reset. */}
-        <HomeForm key={home.id} home={home} editable={canManage} />
+        <div className="space-y-6">
+          <HomeForm key={home.id} home={home} editable={canManage} />
+          <LocalControlCard key={`pin-${home.id}`} home={home} editable={canManage} />
+        </div>
 
         <section>
           <SectionHeader
@@ -216,6 +219,80 @@ function HomeForm({ home, editable }: { home: Home; editable: boolean }) {
           <p className="text-muted text-sm">Only owners and admins can change home settings.</p>
         )}
       </form>
+    </Card>
+  );
+}
+
+/** Home PIN for each board's own page on the home Wi-Fi, which keeps working when the internet is down. */
+function LocalControlCard({ home, editable }: { home: Home; editable: boolean }) {
+  const [pin, setPin] = useState('');
+  const [turningOff, setTurningOff] = useState(false);
+  const save = useApiMutation((localPin: string | null) => api.patch(`/homes/${home.id}`, { localPin }), {
+    invalidate: [qk.homes],
+    success: 'Local control updated',
+    onSuccess: () => {
+      setPin('');
+      setTurningOff(false);
+    },
+  });
+  const valid = /^\d{6,8}$/.test(pin);
+
+  return (
+    <Card>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-bold text-lg">
+          <Wifi className="size-5 text-brand-500" /> Control without internet
+        </h2>
+        <Badge tone={home.localPinSet ? 'brand' : 'muted'}>{home.localPinSet ? 'On' : 'Off'}</Badge>
+      </div>
+      <p className="text-muted text-sm">
+        When the internet is down, phones on your home Wi-Fi can still switch lights and fans from each
+        board&apos;s own page. Its address is on the Boards page. Anyone who knows this PIN and is on your
+        Wi-Fi can use it.
+      </p>
+      {editable ? (
+        <form
+          className="mt-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid) save.mutate(pin);
+          }}
+        >
+          <Field
+            label={home.localPinSet ? 'New PIN' : 'Home PIN'}
+            hint="6 to 8 digits. It is never shown again; boards that are online get it right away."
+          >
+            <Input
+              inputMode="numeric"
+              autoComplete="new-password"
+              type="password"
+              maxLength={8}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={!valid} loading={save.isPending && !turningOff}>
+              {home.localPinSet ? 'Change PIN' : 'Turn on'}
+            </Button>
+            {home.localPinSet && (
+              <Button
+                variant="ghost"
+                className="text-danger"
+                loading={save.isPending && turningOff}
+                onClick={() => {
+                  setTurningOff(true);
+                  save.mutate(null);
+                }}
+              >
+                Turn off
+              </Button>
+            )}
+          </div>
+        </form>
+      ) : (
+        <p className="mt-3 text-muted text-sm">Only owners and admins can change the PIN.</p>
+      )}
     </Card>
   );
 }

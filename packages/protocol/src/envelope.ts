@@ -66,8 +66,12 @@ export const configValueSchema = z.object({
       deviceId: z.string(),
       type: z.string(),
       powerOnBehavior: z.enum(['off', 'last', 'cloud']).default('last'),
+      /** Device name, shown on the board's local control page. */
+      name: z.string().max(80).optional(),
     }),
   ),
+  /** localPinVerifier(boardSecret, homePin); null or absent = local control off. */
+  localPinHash: z.string().nullable().optional(),
 });
 export type ConfigValue = z.infer<typeof configValueSchema>;
 

@@ -4,6 +4,7 @@ import {
   EVENT_REFILL_PER_S,
   findAction,
   findEvent,
+  localPinVerifier,
   metrics,
   type Payload,
   TELEMETRY_MIN_INTERVAL_S,
@@ -15,9 +16,11 @@ import {
   deviceEvents,
   deviceState,
   devices,
+  homes,
   type MemberPermissions,
   sensorReadings,
 } from '../../db/schema';
+import { decryptSecret } from '../../lib/crypto';
 import { AppError, badRequest } from '../../lib/errors';
 import type { ControllerAuth, HandshakeMeta } from '../gateway/gateway';
 import { resolveTemplate } from '../templates/templates.service';
@@ -52,20 +55,19 @@ export async function deviceViews(ctx: AppContext, where: ReturnType<typeof eq>)
   }));
 }
 
-/** Push deviceId <-> channel mapping to the board. */
-export async function sendConfig(ctx: AppContext, controllerId: string, keyId?: string): Promise<void> {
-  const key =
-    keyId ??
-    (
-      await ctx.db
-        .select({ keyId: controllers.keyId })
-        .from(controllers)
-        .where(eq(controllers.id, controllerId))
-    )[0]?.keyId;
-  if (!key) return;
+/** Push the board's config: deviceId <-> channel mapping, names, and the local-control PIN verifier. */
+export async function sendConfig(ctx: AppContext, controllerId: string): Promise<void> {
+  if (!ctx.services.gateway.isOnline(controllerId)) return;
+  const [board] = await ctx.db
+    .select({ keyId: controllers.keyId, secretEnc: controllers.secretEnc, pinEnc: homes.localPinEnc })
+    .from(controllers)
+    .innerJoin(homes, eq(homes.id, controllers.homeId))
+    .where(eq(controllers.id, controllerId));
+  if (!board) return;
   const list = await ctx.db.select().from(devices).where(eq(devices.controllerId, controllerId));
+  const pin = board.pinEnc ? decryptSecret(board.pinEnc, ctx.encKey) : null;
   ctx.services.gateway.send(controllerId, {
-    deviceId: key,
+    deviceId: board.keyId,
     action: controllerActions.config,
     value: {
       channels: list
@@ -74,8 +76,11 @@ export async function sendConfig(ctx: AppContext, controllerId: string, keyId?: 
           channel: d.channel!,
           deviceId: d.id,
           type: d.type,
+          name: d.name,
           powerOnBehavior: d.config.powerOnBehavior ?? 'last',
         })),
+      // The board gets a verifier, never the PIN itself.
+      localPinHash: pin ? localPinVerifier(decryptSecret(board.secretEnc, ctx.encKey), pin) : null,
     },
   });
 }
@@ -92,6 +97,8 @@ export async function onControllerConnected(ctx: AppContext, auth: ControllerAut
       firmwareVersion: meta.version,
       mac: meta.mac,
       ip: meta.ip,
+      lanIp: meta.lanIp,
+      localName: meta.localName,
     })
     .where(eq(controllers.id, auth.controllerId));
 
@@ -130,7 +137,7 @@ export async function onControllerConnected(ctx: AppContext, auth: ControllerAut
     await ctx.db.insert(deviceState).values({ deviceId: d!.id, state: {} });
     created.push(d!.id);
   }
-  await sendConfig(ctx, auth.controllerId, auth.keyId);
+  await sendConfig(ctx, auth.controllerId);
 
   const all = await ctx.db
     .select({ id: devices.id })
@@ -252,7 +259,8 @@ export async function onDeviceEvent(ctx: AppContext, auth: ControllerAuth, p: Pa
 
   const physical = p.cause?.type === 'PHYSICAL_INTERACTION' || p.clientId === 'physical';
   await applyState(ctx, device, def.state(parsed.data), {
-    source: physical ? 'physical' : 'system',
+    // 'local' = changed on the board's local control page (home Wi-Fi, maybe without internet)
+    source: p.clientId === 'local' ? 'local' : physical ? 'physical' : 'system',
     kind: 'event',
     action: p.action,
     value: parsed.data,

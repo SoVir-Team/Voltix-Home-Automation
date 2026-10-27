@@ -43,6 +43,7 @@ export const eventSource = pgEnum('event_source', [
   'physical',
   'restore',
   'system',
+  'local',
 ]);
 export const otaTargetStatus = pgEnum('ota_target_status', [
   'pending',
@@ -136,6 +137,8 @@ export const homes = pgTable('homes', {
     .$type<MemberPermissions>()
     .notNull()
     .default({ locks: true, energy: true, lighting: true, climate: true }),
+  /** Local-control PIN, AES-GCM with SECRET_ENC_KEY. Null = local control off. Never sent to clients. */
+  localPinEnc: bytea('local_pin_enc'),
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
 });
@@ -192,6 +195,9 @@ export const controllers = pgTable('controllers', {
   mac: text('mac'),
   firmwareVersion: text('firmware_version'),
   ip: inet('ip'),
+  /** Address on the home network and mDNS name, for the board's local control page. */
+  lanIp: inet('lan_ip'),
+  localName: text('local_name'),
   online: boolean('online').notNull().default(false),
   lastSeenAt: ts('last_seen_at'),
   createdAt: ts('created_at').notNull().defaultNow(),

@@ -14,6 +14,7 @@
 #include <string>
 
 #include "VoltixCrypto.h"
+#include "VoltixLocal.h"
 #include "VoltixProtocol.h"
 #include "VoltixRootCA.h"
 
@@ -43,6 +44,7 @@ const uint8_t kMaxInvalid = 10;
 // reportPending bits.
 const uint8_t kReportPower = 1;
 const uint8_t kReportLevel = 2;
+const uint8_t kReportLocal = 0x40;
 const uint8_t kReportPhysical = 0x80;
 // The input task and loop() both update reportPending.
 portMUX_TYPE reportMux = portMUX_INITIALIZER_UNLOCKED;
@@ -93,6 +95,10 @@ struct VoltixInternals {
                                "type='password' autocomplete='off'"};
   String apName;
   uint32_t wifiKickAt = 0;
+
+  // Local control page (home Wi-Fi, works without internet). pinVerifier mirrors NVS "lp".
+  VoltixLocal local;
+  String pinVerifier;
 
   // Persistence and housekeeping.
   uint8_t savedState[VOLTIX_MAX_CHANNELS];
@@ -168,6 +174,8 @@ struct VoltixInternals {
     key = prefs.getString("key", "");
     secret = prefs.getString("secret", "");
     parseServer();
+    pinVerifier = prefs.isKey("lp") ? prefs.getString("lp", "") : String();
+    local.setPin(secret.c_str(), pinVerifier.c_str());
 
     // Power-on behaviour per channel: off, last state, or last state until the cloud restores its own.
     uint8_t pob[VOLTIX_MAX_CHANNELS];
@@ -182,7 +190,22 @@ struct VoltixInternals {
       c.level = (s & 0x7f) <= 100 ? (int8_t)(s & 0x7f) : -1;
       c.on = c.powerOn != VOLTIX_POWER_ON_OFF && (s & 0x80);
       writeRelay(c);
+      String key = nameKey(c.number);
+      if (prefs.isKey(key.c_str())) copyName(c.name, sizeof c.name, prefs.getString(key.c_str(), "").c_str());
     }
+  }
+
+  static String nameKey(uint8_t channel) { return "n" + String(channel); }
+
+  // strlcpy that never leaves half a UTF-8 character at the end.
+  static void copyName(char *dst, size_t size, const char *src) {
+    if (strlcpy(dst, src, size) < size) return;
+    size_t len = size - 1, start = len;
+    while (start > 0 && (dst[start - 1] & 0xC0) == 0x80) start--;
+    if (!start) return void(dst[0] = 0);
+    uint8_t lead = dst[start - 1];
+    size_t need = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
+    if (len - (start - 1) < need) dst[start - 1] = 0;
   }
 
   void saveStateIfDue() {
@@ -227,6 +250,7 @@ struct VoltixInternals {
     if (!changed) return;
     VLOG("board settings saved");
     vx.parseServer();
+    vx.local.setPin(vx.secret.c_str(), vx.pinVerifier.c_str());
     // Reconnect with the new settings.
     if (vx.wsStarted) vx.ws.disconnect();
     vx.wsStarted = false;
@@ -240,6 +264,8 @@ struct VoltixInternals {
     char ap[24];
     snprintf(ap, sizeof ap, "Voltix-Setup-%02X%02X", mac[4], mac[5]);
     apName = ap;
+    snprintf(ap, sizeof ap, "voltix-%02x%02x", mac[4], mac[5]);
+    local.begin(ap);
 
     wm.setDebugOutput(false);
     wm.setTitle("Voltix");
@@ -302,6 +328,8 @@ struct VoltixInternals {
     h += "\r\nx-voltix-mac: " + WiFi.macAddress();
     h += "\r\nx-voltix-restore: ";
     h += restoreOnConnect ? "true" : "false";
+    h += "\r\nx-voltix-lan-ip: " + WiFi.localIP().toString();
+    h += "\r\nx-voltix-local: " + String(local.hostName()) + ".local";
     ws.setExtraHeaders(h.c_str());
 
     uint32_t backoff = VOLTIX_BACKOFF_MIN_MS + (millis() - outageStart) / 2;
@@ -438,7 +466,8 @@ struct VoltixInternals {
     return true;
   }
 
-  bool sendChannelEvent(VoltixChannel &c, const char *action, JsonObjectConst value, bool physical) {
+  bool sendChannelEvent(VoltixChannel &c, const char *action, JsonObjectConst value, bool physical,
+                        bool fromLocalPage = false) {
     if (!v().online_ || !c.deviceId[0]) return false;
     bool telemetry = !strcmp(action, "currentTemperature") || !strcmp(action, "airQuality") ||
                      !strcmp(action, "powerUsage");
@@ -447,7 +476,7 @@ struct VoltixInternals {
     }
     if (!takeToken(c)) return false;
     JsonDocument doc;
-    base(doc, action, c.deviceId, physical ? "physical" : "device", "event");
+    base(doc, action, c.deviceId, fromLocalPage ? "local" : physical ? "physical" : "device", "event");
     doc["value"] = value;
     if (physical) doc["cause"]["type"] = "PHYSICAL_INTERACTION";
     if (!send(doc)) return false;
@@ -463,14 +492,15 @@ struct VoltixInternals {
       uint8_t pending = c.reportPending;
       if (!(pending & (kReportPower | kReportLevel))) continue;
       bool physical = pending & kReportPhysical;
+      bool fromLocalPage = pending & kReportLocal;
       JsonDocument value;
       if (pending & kReportPower) {
         value["state"] = c.on ? "On" : "Off";
-        if (!sendChannelEvent(c, "setPowerState", value.as<JsonObjectConst>(), physical)) continue;
+        if (!sendChannelEvent(c, "setPowerState", value.as<JsonObjectConst>(), physical, fromLocalPage)) continue;
         clearReport(c, kReportPower);
       } else {
         value["powerLevel"] = c.level < 0 ? 0 : c.level;
-        if (!sendChannelEvent(c, "setPowerLevel", value.as<JsonObjectConst>(), physical)) continue;
+        if (!sendChannelEvent(c, "setPowerLevel", value.as<JsonObjectConst>(), physical, fromLocalPage)) continue;
         clearReport(c, kReportLevel);
       }
     }
@@ -497,6 +527,12 @@ struct VoltixInternals {
       VoltixChannel *c = v().channel(ch["channel"] | 0);
       if (!c) continue;
       strlcpy(c->deviceId, ch["deviceId"] | "", sizeof c->deviceId);
+      char name[sizeof c->name];
+      copyName(name, sizeof name, ch["name"] | "");
+      if (strcmp(name, c->name)) {  // NVS only on change: config arrives on every connect
+        strlcpy(c->name, name, sizeof c->name);
+        prefs.putString(nameKey(c->number).c_str(), name);
+      }
       const char *b = ch["powerOnBehavior"] | "last";
       uint8_t behaviour = !strcmp(b, "off")     ? VOLTIX_POWER_ON_OFF
                           : !strcmp(b, "cloud") ? VOLTIX_POWER_ON_CLOUD
@@ -513,6 +549,14 @@ struct VoltixInternals {
       }
     }
     if (pobChanged) prefs.putBytes("po", pob, sizeof pob);
+    const char *pin = value["localPinHash"] | "";
+    if (pinVerifier != pin) {
+      pinVerifier = pin;
+      if (*pin) prefs.putString("lp", pin);
+      else prefs.remove("lp");
+      local.setPin(secret.c_str(), pin);
+      VLOG("local control %s", *pin ? "on (PIN set)" : "off");
+    }
     restoreOnConnect = false;
     v().online_ = true;
     markFirmwareValid();
@@ -830,6 +874,7 @@ void VoltixClass::loop() {
   VoltixInternals &vx = VoltixInternals::get();
   vx.serviceWifi();
   vx.serviceConnection();
+  vx.local.loop(WiFi.status() == WL_CONNECTED, vx.wm.getConfigPortalActive());
   vx.flushReports();
   vx.saveStateIfDue();
   if (vx.otaPending) vx.runOta();
@@ -856,6 +901,13 @@ bool VoltixClass::setPowerLevel(uint8_t number, int level, bool physical) {
   c->level = (int8_t)constrain(level, 0, 100);
   VoltixInternals::get().markDirty();
   queueReport(*c, kReportLevel | (physical ? kReportPhysical : 0));
+  return true;
+}
+
+bool VoltixClass::localAction(VoltixChannel &c, const char *action, JsonObjectConst value, const char *&message) {
+  JsonDocument out;
+  if (!VoltixInternals::get().applyAction(c, action, value, out.to<JsonObject>(), message)) return false;
+  queueReport(c, (strcmp(action, "setPowerState") ? kReportLevel : kReportPower) | kReportLocal);
   return true;
 }
 

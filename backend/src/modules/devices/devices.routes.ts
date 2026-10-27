@@ -77,7 +77,9 @@ export const devicesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (
         .update(devices)
         .set({ ...rest, ...(config && { config: { ...device.config, ...config } }) })
         .where(eq(devices.id, device.id));
-      if (config?.powerOnBehavior && device.controllerId) await sendConfig(ctx, device.controllerId);
+      // The board needs power-on behaviour, and the name for its local control page.
+      if ((config?.powerOnBehavior || rest.name) && device.controllerId)
+        await sendConfig(ctx, device.controllerId);
       ctx.bus.publishHome(device.homeId, { type: 'device.changed', deviceId: device.id });
       const [view] = await deviceViews(ctx, eq(devices.id, device.id));
       return { device: view };

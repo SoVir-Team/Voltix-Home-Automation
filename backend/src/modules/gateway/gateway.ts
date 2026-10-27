@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import {
   COMMAND_TIMEOUT_MS,
   controllerActions,
@@ -32,6 +33,9 @@ export interface HandshakeMeta {
   version: string | null;
   mac: string | null;
   ip: string;
+  /** Board's address on the home network and mDNS name, for its local control page. */
+  lanIp: string | null;
+  localName: string | null;
   restoreStates: boolean;
 }
 
@@ -122,6 +126,8 @@ export class Gateway {
         version: h('x-voltix-version')?.slice(0, 40) ?? null,
         mac: h('x-voltix-mac')?.slice(0, 32) ?? null,
         ip,
+        lanIp: isIP(h('x-voltix-lan-ip') ?? '') ? h('x-voltix-lan-ip')! : null,
+        localName: /^[a-z0-9-]{1,40}\.local$/.test(h('x-voltix-local') ?? '') ? h('x-voltix-local')! : null,
         restoreStates: h('x-voltix-restore') === 'true',
       },
     };

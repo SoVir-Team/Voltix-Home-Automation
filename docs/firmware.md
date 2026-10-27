@@ -145,6 +145,36 @@ channel's state in NVS. It writes 2 s after the last change, and only when somet
 flash. It applies them at boot before Wi-Fi is up, so lights come back even without internet. With **Cloud**,
 the server then restores the state it last knew.
 
+## Local control (no internet)
+
+Each board serves its own small page on the home Wi-Fi, so lights and fans can be switched when the internet
+or the Voltix server is down.
+
+- **Turn it on:** Home settings → **Control without internet** → set a 6–8 digit home PIN. Local control is
+  off until a PIN is set, and turning it off disables every board's page at once.
+- **Address:** `http://voltix-xxxx.local` (last 4 hex digits of the MAC) and `http://<board IP>`. Both are
+  shown on the Boards page. Many Android phones can't open `.local` names, so use the number there. Give the
+  board a fixed DHCP lease in the router so the number doesn't change.
+- **Use:** enter the PIN once per board and phone. The page shows each relay channel by its app name, with an
+  on/off button, and a level slider for fans and dimmers. It refreshes every 2 s and links to the other Voltix
+  boards it finds on the network (mDNS `_voltix._tcp`).
+- **Back online:** changes made on the page reach the cloud when it is reachable again. Activity shows them as
+  "on the local page".
+
+How it works ([`VoltixLocal.cpp`](../firmware/lib/Voltix/src/VoltixLocal.cpp)):
+- The cloud never sends the PIN. The `config` message carries `localPinHash` = HMAC(board secret,
+  `"local-pin:" + PIN`). The board keeps it in NVS (`lp`), with channel names (`n1`, `n2`, …), so both survive
+  a reboot without internet.
+- Login recomputes the hash from the typed PIN and compares in constant time. Five wrong PINs lock logins for
+  5 minutes. A session is a random 128-bit cookie (`vx_local`, HttpOnly, SameSite=Strict) kept in RAM, up to 8
+  of them. They are lost on reboot, and a PIN change signs everyone out.
+- The page answers only to its own IP or `.local` name, and POSTs need its own `Origin`. This blocks other
+  websites (and DNS rebinding) from driving the board through a phone's browser.
+- The page and mDNS start once Wi-Fi is up and the setup portal is closed, since both use port 80. Nothing on
+  the page needs internet time.
+- Commands from the page go through the same code as cloud commands, so `onAction` handlers work for them.
+  Channels with neither a relay nor a level are not shown.
+
 ## OTA updates
 
 1. A platform admin uploads a `.bin` under **Admin → Firmware**. Model and version must match what the image
@@ -191,6 +221,14 @@ The current PCB has no wall-switch inputs. Add them in `board_config.h`. Use pin
 - [ ] App toggles each relay within ~300 ms; the relay polarity is right and nothing clicks at boot except GPIO14.
 - [ ] Power-cut test for each power-on behaviour (off / last / cloud).
 - [ ] Unplug the router: relays and wall switches still work; changes reach the app after reconnect.
+- [ ] Local control:
+  1. Set a home PIN.
+  2. Unplug the router's internet (keep the router on).
+  3. On a phone on the home Wi-Fi, open the board's IP from the Boards page, enter the PIN, and toggle channel
+     2 (GPIO26).
+  4. Five wrong PINs lock logins for 5 minutes.
+  5. Restore internet: within a minute, Activity shows the change "on the local page".
+  6. Turn the PIN off: the page says local control is off.
 - [ ] Regenerate the secret in the app: board goes offline, comes back after re-entering it in the portal.
 - [ ] Hold BOOT 5 s: credentials wiped, portal reopens.
 - [ ] OTA from the admin page: progress shows, board reports the new version.

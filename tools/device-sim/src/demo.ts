@@ -148,6 +148,8 @@ async function main() {
       secret: creds.secret,
       channels,
       model: 'voltix-esp32',
+      lanIp: `192.168.1.${20 + boards.length}`,
+      localName: `voltix-a1b${boards.length}.local`,
     });
     await board.connect();
     board.on('command', (c) => console.log(`[${p.name}] <- ${c.action} ${JSON.stringify(c.value)}`));

@@ -30,5 +30,9 @@
   "plain": {
     "data": "hello",
     "hmac": "6jCTddc4Q5ECk501Z2Zgbe7J1okTmNrI/GjYbSTGmiY="
+  },
+  "localPin": {
+    "pin": "246810",
+    "verifier": "am2kUnte/hX1vBN0iqpG5CBMdnjZbiQrSoBmV1OM+Lo="
   }
 }

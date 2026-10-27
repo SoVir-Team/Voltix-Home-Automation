@@ -173,6 +173,10 @@ int main() {
   uint32_t ts = (uint32_t)std::stoul(hs.get("ts").raw());
   CHECK(handshakeSignature(secret, keyId.c_str(), ts) == hs.get("signature").str());
 
+  Json pin = v.get("localPin");
+  CHECK(localPinVerifier(secret, pin.get("pin").str().c_str()) == pin.get("verifier").str());
+  CHECK(localPinVerifier(secret, "246811") != pin.get("verifier").str());
+
   Json messages = v.get("messages");
   CHECK(messages.size() >= 4);
   for (size_t i = 0; i < messages.size(); i++) {
@@ -225,6 +229,32 @@ int main() {
     CHECK(!g.accept("request", "rt-1", 1001));
     CHECK(g.accept("response", "rt-1", 1001));
     CHECK(g.accept("request", "rt-1", 1000 + 2 * VOLTIX_REPLAY_WINDOW_S + 1));
+  }
+
+  // Local page: host names and PIN lockout.
+  CHECK(localHostAllowed("192.168.1.23", "192.168.1.23", "voltix-a1b2"));
+  CHECK(localHostAllowed("192.168.1.23:80", "192.168.1.23", "voltix-a1b2"));
+  CHECK(localHostAllowed("Voltix-A1B2.local", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed("evil.example", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed("192.168.1.2", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed("voltix-a1b2.local.evil.example", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed("voltix-a1b2.localx", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed("", "192.168.1.23", "voltix-a1b2"));
+  CHECK(!localHostAllowed(".local", "0.0.0.0", ""));
+  {
+    PinLockout l;
+    uint32_t t = 0xFFFFF000UL;  // close to millis() wrap-around
+    for (int i = 0; i < 4; i++) l.failed(t);
+    CHECK(!l.locked(t));
+    l.failed(t);
+    CHECK(l.locked(t) && l.locked(t + PinLockout::kLockMs - 1));
+    CHECK(l.secondsLeft(t) == 301);
+    CHECK(!l.locked(t + PinLockout::kLockMs));
+    l.failed(t + PinLockout::kLockMs);  // after the lock: five fresh tries
+    CHECK(!l.locked(t + PinLockout::kLockMs));
+    l.succeeded();
+    for (int i = 0; i < 4; i++) l.failed(t);
+    CHECK(!l.locked(t));
   }
 
   printf("%d/%d checks passed\n", checks - failures, checks);

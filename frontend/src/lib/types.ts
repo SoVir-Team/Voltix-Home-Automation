@@ -28,6 +28,8 @@ export interface Home {
   tariffPerKwh: number;
   currency: string;
   memberPermissions: MemberPermissions;
+  /** A home PIN is set, so boards serve their local control page on the home Wi-Fi. */
+  localPinSet: boolean;
   role: HomeRole;
   /** Present in the GET /homes list. */
   deviceCount?: number;
@@ -76,6 +78,9 @@ export interface Controller {
   mac: string | null;
   firmwareVersion: string | null;
   ip: string | null;
+  /** Where the board's local control page is on the home Wi-Fi (reported by the board). */
+  lanIp: string | null;
+  localName: string | null;
   online: boolean;
   lastSeenAt: string | null;
   createdAt: string;

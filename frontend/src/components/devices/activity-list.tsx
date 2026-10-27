@@ -13,6 +13,7 @@ const sourceLabel: Record<string, string> = {
   schedule: 'by a schedule',
   automation: 'by an automation',
   physical: 'at the switch',
+  local: 'on the local page',
   restore: 'after power returned',
   system: '',
 };

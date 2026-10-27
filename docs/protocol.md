@@ -29,6 +29,8 @@ The board opens `wss://<server>/api/v1/device` with these headers:
 | `x-voltix-version`  | firmware version, e.g. `1.0.0`                                                   |
 | `x-voltix-mac`      | Wi-Fi MAC address                                                                |
 | `x-voltix-restore`  | `true` on the first connection after power-up, else `false`                      |
+| `x-voltix-lan-ip`   | optional: the board's IPv4 address on the home network                           |
+| `x-voltix-local`    | optional: its mDNS name, e.g. `voltix-a1b2.local`                                |
 
 The server rejects the upgrade before any WebSocket traffic:
 
@@ -49,8 +51,17 @@ until the board gets the new secret.
 3. The server sends a signed **`config`** request. Its `deviceId` is the board key, and its value is:
 
    ```json
-   { "channels": [ { "channel": 1, "deviceId": "6f1c…", "type": "switch", "powerOnBehavior": "last" } ] }
+   {
+     "channels": [
+       { "channel": 1, "deviceId": "6f1c…", "type": "switch", "name": "Porch light", "powerOnBehavior": "last" }
+     ],
+     "localPinHash": "am2kUnte…"
+   }
    ```
+
+   `name` is the device name shown on the board's local page. `localPinHash` is base64
+   HMAC-SHA256(secret, `"local-pin:" + PIN`) for the home PIN, or `null` when local control is off. The
+   server sends a fresh `config` whenever a name, a power-on behaviour or the home PIN changes.
 
    `powerOnBehavior` is one of:
    - `off`: start off;

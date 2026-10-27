@@ -24,6 +24,9 @@ export interface BoardOptions {
   model?: string;
   version?: string;
   restoreStates?: boolean;
+  /** Address and mDNS name of the board's local control page, e.g. 192.168.1.23 and voltix-a1b2.local. */
+  lanIp?: string;
+  localName?: string;
   /** Reject commands (simulates a faulty relay). */
   failActions?: boolean;
   /** Don't answer commands (simulates a hung board). */
@@ -63,6 +66,8 @@ export class VirtualBoard extends EventEmitter {
         'x-voltix-version': this.version,
         'x-voltix-mac': 'AA:BB:CC:00:00:01',
         'x-voltix-restore': String(!!this.opts.restoreStates),
+        ...(this.opts.lanIp && { 'x-voltix-lan-ip': this.opts.lanIp }),
+        ...(this.opts.localName && { 'x-voltix-local': this.opts.localName }),
       },
     });
     this.ws = ws;
@@ -168,14 +173,20 @@ export class VirtualBoard extends EventEmitter {
     this.event(channel, 'setPowerState', { state: s.powerState }, { type: 'PHYSICAL_INTERACTION' });
   }
 
-  /** Send any device event (sensor reading, doorbell, ...). */
-  event(channel: number, action: string, value: Record<string, unknown>, cause?: { type: string }): void {
+  /** Send any device event (sensor reading, doorbell, ...). clientId 'local' = changed on the local page. */
+  event(
+    channel: number,
+    action: string,
+    value: Record<string, unknown>,
+    cause?: { type: string },
+    clientId?: string,
+  ): void {
     const deviceId = this.deviceByChannel.get(channel);
     if (!deviceId) throw new Error(`channel ${channel} has no device yet`);
     this.send(
       newPayload({
         action,
-        clientId: cause?.type === 'PHYSICAL_INTERACTION' ? 'physical' : 'device',
+        clientId: clientId ?? (cause?.type === 'PHYSICAL_INTERACTION' ? 'physical' : 'device'),
         deviceId,
         type: 'event',
         value,

@@ -1,6 +1,6 @@
 'use client';
 
-import { Cpu, Download, KeyRound, Pencil, Plus, RotateCw, Trash2 } from 'lucide-react';
+import { Cpu, Download, KeyRound, Pencil, Plus, RotateCw, Trash2, Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { useHome } from '@/components/home-context';
 import { Page, PageHeader, QueryState } from '@/components/layout/page';
@@ -131,7 +131,7 @@ function BoardCard({ board, fw }: { board: Controller; fw?: BoardFirmware }) {
     ['Firmware', board.firmwareVersion ?? '–'],
     ['Model', board.model ?? '–'],
     ['Devices', String(board.deviceCount ?? 0)],
-    ['IP address', board.ip ?? '–'],
+    ['Public IP', board.ip ?? '–'],
     ['MAC', board.mac ?? '–'],
     ['Board key', board.keyId],
   ];
@@ -176,6 +176,32 @@ function BoardCard({ board, fw }: { board: Controller; fw?: BoardFirmware }) {
           </div>
         ))}
       </dl>
+
+      {(board.lanIp || board.localName) && (
+        <div className="mt-4 rounded-2xl bg-brand-50 p-3 text-sm">
+          <p className="flex items-center gap-2 font-medium">
+            <Wifi className="size-4 text-brand-500" /> Local page (home Wi-Fi only)
+          </p>
+          <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[13px]">
+            {[board.lanIp, board.localName].filter(Boolean).map((host) => (
+              <a
+                key={host}
+                href={`http://${host}/`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-brand-600 underline"
+              >
+                {host}
+              </a>
+            ))}
+          </p>
+          <p className="mt-1 text-muted text-xs">
+            {home.localPinSet
+              ? 'Works without internet. If the .local name does not open on your phone, use the number.'
+              : 'Off until you set a home PIN in Home settings.'}
+          </p>
+        </div>
+      )}
 
       {ota && (
         <div className="mt-4">

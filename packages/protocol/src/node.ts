@@ -59,3 +59,8 @@ export function decodeMessage(
 export function handshakeSignature(secret: string, keyId: string, ts: number): string {
   return hmacBase64(secret, `${keyId}\n${ts}`);
 }
+
+/** What a board stores to check the home's local-control PIN (it never receives the PIN itself). */
+export function localPinVerifier(secret: string, pin: string): string {
+  return hmacBase64(secret, `local-pin:${pin}`);
+}

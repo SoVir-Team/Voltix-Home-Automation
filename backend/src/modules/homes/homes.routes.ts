@@ -4,11 +4,12 @@ import { z } from 'zod';
 import type { AppContext } from '../../context';
 import { controllers, devices, homeInvites, homeMembers, homes, rooms, users } from '../../db/schema';
 import { hasRole, requireHomeRole, requireUser } from '../../lib/access';
-import { randomToken, sha256 } from '../../lib/crypto';
+import { encryptSecret, randomToken, sha256 } from '../../lib/crypto';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { actionEmail } from '../../lib/mailer';
 import { audit } from '../audit/audit';
 import { createHomeFor } from '../auth/auth.routes';
+import { sendConfig } from '../devices/devices.service';
 
 const homeId = z.object({ homeId: z.uuid() });
 // No time zone field: every home uses the column default, Asia/Kolkata (India only).
@@ -23,7 +24,21 @@ const homeBody = z.object({
     .partial()
     .optional(),
 });
+const homePatch = homeBody.partial().extend({
+  /** 6-8 digits enables local control on the home Wi-Fi; null turns it off. */
+  localPin: z
+    .string()
+    .regex(/^\d{6,8}$/, 'Use 6 to 8 digits')
+    .nullable()
+    .optional(),
+});
 const roleSchema = z.enum(['owner', 'admin', 'member']);
+
+/** Never send the encrypted PIN to clients; say only whether one is set. */
+const homeView = ({ localPinEnc, ...home }: typeof homes.$inferSelect) => ({
+  ...home,
+  localPinSet: !!localPinEnc,
+});
 const roomBody = z.object({
   name: z.string().trim().min(1).max(60),
   icon: z.string().max(40).optional(),
@@ -49,7 +64,13 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
           .groupBy(devices.homeId)
       : [];
     const byHome = new Map(deviceCounts.map((d) => [d.homeId, d.n]));
-    return { homes: rows.map((r) => ({ ...r.home, role: r.role, deviceCount: byHome.get(r.home.id) ?? 0 })) };
+    return {
+      homes: rows.map((r) => ({
+        ...homeView(r.home),
+        role: r.role,
+        deviceCount: byHome.get(r.home.id) ?? 0,
+      })),
+    };
   });
 
   app.post('/homes', { schema: { tags: ['homes'], body: homeBody } }, async (req, reply) => {
@@ -70,7 +91,7 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
       ? await ctx.db.update(homes).set(extra).where(eq(homes.id, home.id)).returning()
       : [home];
     await audit(ctx, req, 'home.create', { type: 'home', id: home.id });
-    return reply.code(201).send({ home: { ...updated!, role: 'owner' } });
+    return reply.code(201).send({ home: { ...homeView(updated!), role: 'owner' } });
   });
 
   app.get(
@@ -79,21 +100,22 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
     async (req) => {
       const access = await requireHomeRole(ctx, req, req.params.homeId);
       const [home] = await ctx.db.select().from(homes).where(eq(homes.id, req.params.homeId));
-      return { home: { ...home!, role: access.role } };
+      return { home: { ...homeView(home!), role: access.role } };
     },
   );
 
   app.patch(
     '/homes/:homeId',
-    { schema: { tags: ['homes'], params: homeId, body: homeBody.partial() } },
+    { schema: { tags: ['homes'], params: homeId, body: homePatch } },
     async (req) => {
       const access = await requireHomeRole(ctx, req, req.params.homeId, 'admin');
-      const { memberPermissions, ...rest } = req.body;
+      const { memberPermissions, localPin, ...rest } = req.body;
       if (memberPermissions && access.role !== 'owner')
         throw forbidden('Only owners can change member permissions');
       const changes = {
         ...rest,
         ...(memberPermissions && { memberPermissions: { ...access.permissions, ...memberPermissions } }),
+        ...(localPin !== undefined && { localPinEnc: localPin ? encryptSecret(localPin, ctx.encKey) : null }),
       };
       const [home] = Object.keys(changes).length
         ? await ctx.db.update(homes).set(changes).where(eq(homes.id, req.params.homeId)).returning()
@@ -105,7 +127,22 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
         { type: 'home', id: req.params.homeId },
         { fields: Object.keys(req.body) },
       );
-      return { home: { ...home!, role: access.role } };
+      if (localPin !== undefined) {
+        await audit(
+          ctx,
+          req,
+          'home.local_pin',
+          { type: 'home', id: req.params.homeId },
+          { enabled: !!localPin },
+        );
+        // Boards get the new PIN verifier (or lose it) right away.
+        const boards = await ctx.db
+          .select({ id: controllers.id })
+          .from(controllers)
+          .where(eq(controllers.homeId, req.params.homeId));
+        for (const b of boards) await sendConfig(ctx, b.id);
+      }
+      return { home: { ...homeView(home!), role: access.role } };
     },
   );
 

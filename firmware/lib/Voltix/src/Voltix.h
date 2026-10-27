@@ -29,6 +29,7 @@ struct VoltixChannel {
   uint8_t number = 0;
   char type[33] = "";
   char deviceId[65] = "";  // assigned by the cloud; empty until the first config message
+  char name[64] = "";      // device name from the cloud, for the local page (kept in NVS)
   uint8_t relayPin = VOLTIX_NO_PIN;
   bool on = false;
   int8_t level = -1;  // powerLevel 0..100, -1 = never set
@@ -89,6 +90,9 @@ class VoltixClass {
 
  private:
   friend struct VoltixInternals;
+  friend class VoltixLocal;
+  // A change made on the local page: same path as a cloud command, reported to the cloud as "local".
+  bool localAction(VoltixChannel &c, const char *action, JsonObjectConst value, const char *&message);
 
   VoltixChannel channels_[VOLTIX_MAX_CHANNELS];
   uint8_t channelCount_ = 0;

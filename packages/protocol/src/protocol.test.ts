@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import vectors from '../test-vectors.json';
 import { capabilities, findAction, findEvent } from './capabilities';
 import { parseChannelsHeader } from './envelope';
-import { decodeMessage, encodeMessage, handshakeSignature, hmacBase64, newPayload } from './node';
+import {
+  decodeMessage,
+  encodeMessage,
+  handshakeSignature,
+  hmacBase64,
+  localPinVerifier,
+  newPayload,
+} from './node';
 import { extractRawPayload } from './raw-payload';
 import { builtinTemplates } from './templates';
 
@@ -20,6 +27,11 @@ describe('test vectors', () => {
     expect(handshakeSignature(secret, vectors.handshake.keyId, vectors.handshake.ts)).toBe(
       vectors.handshake.signature,
     );
+  });
+
+  it('local PIN verifier', () => {
+    expect(localPinVerifier(secret, vectors.localPin.pin)).toBe(vectors.localPin.verifier);
+    expect(localPinVerifier(secret, '246811')).not.toBe(vectors.localPin.verifier);
   });
 });
 
