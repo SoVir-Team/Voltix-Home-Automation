@@ -1,0 +1,22 @@
+{
+  "name": "@voltix/device-sim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Virtual Voltix boards for development, integration tests and load tests.",
+  "exports": {
+    ".": "./src/board.ts"
+  },
+  "bin": {
+    "device-sim": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "load": "tsx src/load.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  }
+}

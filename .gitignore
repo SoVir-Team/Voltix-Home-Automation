@@ -17,6 +17,7 @@ next-env.d.ts
 
 # runtime data
 storage/
+storage-test/
 *.log
 
 # firmware
