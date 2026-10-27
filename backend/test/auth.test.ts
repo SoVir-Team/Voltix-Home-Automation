@@ -79,6 +79,12 @@ describe('auth', () => {
     expect((await client.post('/auth/refresh')).status).toBe(401);
   });
 
+  it('refreshes from the cookie alone, with no request body (what browsers send)', async () => {
+    const { client } = await signUp(t);
+    const res = await client.req('POST', '/auth/refresh');
+    expect(res.status).toBe(200);
+  });
+
   it('blocks cookie-authenticated cross-site writes (CSRF) but allows same-origin', async () => {
     const { client, homeId } = await signUp(t);
     const evil = await client.req(

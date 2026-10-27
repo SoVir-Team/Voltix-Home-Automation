@@ -13,7 +13,8 @@
   "scripts": {
     "start": "tsx src/cli.ts",
     "load": "tsx src/load.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "demo": "tsx src/demo.ts"
   },
   "devDependencies": {
     "@types/ws": "^8.18.2",

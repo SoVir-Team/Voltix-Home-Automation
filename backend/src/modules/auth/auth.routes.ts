@@ -200,7 +200,8 @@ export const authRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (app
     '/auth/refresh',
     {
       config: { public: true, rateLimit: { max: 60, timeWindow: '1 minute' } },
-      schema: { tags: ['auth'], body: z.object({ refreshToken: z.string().optional() }).optional() },
+      // Browsers send no body at all (Fastify passes null): the cookie carries the token.
+      schema: { tags: ['auth'], body: z.object({ refreshToken: z.string().optional() }).nullish() },
     },
     async (req, reply) => {
       const presented = req.body?.refreshToken ?? req.cookies[REFRESH_COOKIE];
