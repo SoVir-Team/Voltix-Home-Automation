@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { automations, devices, energyDaily } from '../src/db/schema';
+import { automations, deviceState, devices, energyDaily } from '../src/db/schema';
 import { MAX_DEPTH } from '../src/modules/automations/engine';
 import { applyState } from '../src/modules/devices/state.service';
+import { Maintenance } from '../src/modules/maintenance/maintenance';
 import { connectBoard, resetDb, signUp, startApp, type TestApp, waitFor } from './helpers';
 
 let t: TestApp;
@@ -173,6 +174,27 @@ describe('scenes, automations and energy', () => {
     const report = await client.get(`/homes/${homeId}/energy?range=week`);
     expect(report.status).toBe(200);
     expect(report.body.devices.find((x: { id: string }) => x.id === d.id)?.kwh).toBeGreaterThan(0);
+    await board.close();
+  });
+
+  it('the hourly job books energy for devices that stay on', async () => {
+    const { client, homeId } = await signUp(t);
+    const { board } = await connectBoard(t, client, homeId, { 1: 'switch' });
+    const [d] = (await client.get(`/homes/${homeId}/devices`)).body.devices;
+    await client.patch(`/devices/${d.id}`, { config: { ratedWatts: 100 } });
+    await client.post(`/devices/${d.id}/actions`, { action: 'setPowerState', value: { state: 'On' } });
+    const twoHoursAgo = new Date(Date.now() - 2 * 3600_000);
+    await t.ctx.db
+      .update(deviceState)
+      .set({ powerOnSince: twoHoursAgo })
+      .where(eq(deviceState.deviceId, d.id));
+
+    await new Maintenance(t.ctx).closeEnergyIntervals(new Date());
+
+    const rows = await t.ctx.db.select().from(energyDaily).where(eq(energyDaily.deviceId, d.id));
+    expect(rows.reduce((s, r) => s + r.whEstimated, 0)).toBeCloseTo(200, 0); // 100 W for 2 h
+    const [st] = await t.ctx.db.select().from(deviceState).where(eq(deviceState.deviceId, d.id));
+    expect(Date.now() - st!.powerOnSince!.getTime()).toBeLessThan(60_000); // interval restarted
     await board.close();
   });
 });

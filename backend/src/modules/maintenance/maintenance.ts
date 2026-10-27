@@ -69,6 +69,8 @@ export class Maintenance {
 
   /** Book energy for devices that have been on for a while, so daily totals stay current. */
   async closeEnergyIntervals(now: Date): Promise<void> {
+    // Raw sql templates take timestamps as ISO strings (the driver doesn't serialise Date there).
+    const at = now.toISOString();
     const rows = await this.ctx.db.execute<{
       device_id: string;
       since: Date;
@@ -78,7 +80,7 @@ export class Maintenance {
     }>(sql`
       SELECT s.device_id, s.power_on_since AS since, s.state, d.config, h.timezone
       FROM device_state s JOIN devices d ON d.id = s.device_id JOIN homes h ON h.id = d.home_id
-      WHERE s.power_on_since IS NOT NULL AND s.power_on_since < ${now}`);
+      WHERE s.power_on_since IS NOT NULL AND s.power_on_since < ${at}`);
     for (const r of rows) {
       await this.ctx.db.transaction(async (tx) => {
         // Lock the row like applyState does, and only book the interval if nobody changed it meanwhile.
@@ -97,7 +99,7 @@ export class Maintenance {
           levelFactor(cur.state),
         );
         await tx.execute(
-          sql`UPDATE device_state SET power_on_since = ${now} WHERE device_id = ${r.device_id}`,
+          sql`UPDATE device_state SET power_on_since = ${at} WHERE device_id = ${r.device_id}`,
         );
       });
     }

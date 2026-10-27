@@ -156,6 +156,42 @@ describe('device gateway', () => {
     await expect(old.connect()).rejects.toThrow(/401/);
   });
 
+  it('limits handshakes per board, not per IP', async () => {
+    const { client, homeId } = await signUp(t);
+    // 35 boards behind one address (one big home, or several homes behind carrier NAT) all get in.
+    const boards = await Promise.all(
+      Array.from({ length: 35 }, () => connectBoard(t, client, homeId, { 1: 'switch' }).then((r) => r.board)),
+    );
+    expect(boards).toHaveLength(35);
+    await Promise.all(boards.map((b) => b.close()));
+
+    // One board stuck in a reconnect loop is cut off.
+    const { keyId, secret, board } = await connectBoard(t, client, homeId, { 1: 'switch' });
+    await board.close();
+    const attempt = () => {
+      const ts = Math.floor(Date.now() / 1000);
+      const ws = new WebSocket(deviceUrl(), {
+        headers: {
+          'x-voltix-key': keyId,
+          'x-voltix-ts': String(ts),
+          'x-voltix-sig': handshakeSignature(secret, keyId, ts),
+          'x-voltix-channels': '1:switch',
+        },
+      });
+      return new Promise<number | undefined>((r) => {
+        ws.once('unexpected-response', (_q, res) => r(res.statusCode));
+        ws.once('open', () => {
+          ws.close();
+          r(101);
+        });
+      });
+    };
+    const statuses: (number | undefined)[] = [];
+    for (let i = 0; i < 12; i++) statuses.push(await attempt());
+    expect(statuses.slice(0, 11).every((s) => s === 101)).toBe(true);
+    expect(statuses[11]).toBe(429);
+  });
+
   it('ignores tampered, replayed and stale device messages', async () => {
     const { client, homeId } = await signUp(t);
     const { board, secret } = await connectBoard(t, client, homeId, { 1: 'switch' });

@@ -1,3 +1,4 @@
+import { cpSync } from 'node:fs';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -10,4 +11,6 @@ export default defineConfig({
   sourcemap: true,
   // bundle the workspace protocol package (shipped as TS source); keep npm deps external
   noExternal: ['@voltix/protocol'],
+  // The migrator reads SQL files next to the bundle (dist/migrations), so ship them with it.
+  onSuccess: async () => cpSync('src/db/migrations', 'dist/migrations', { recursive: true }),
 });

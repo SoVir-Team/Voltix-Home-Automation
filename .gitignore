@@ -39,4 +39,5 @@ Thumbs.db
 
 # simulator demo credentials
 tools/device-sim/.demo/
+tools/device-sim/.load/
 .claude/

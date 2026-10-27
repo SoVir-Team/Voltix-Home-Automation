@@ -85,6 +85,8 @@ export class VirtualBoard extends EventEmitter {
       this.once('config', onConfig);
       ws.once('error', onFail);
       ws.once('unexpected-response', onUnexpected);
+      // Errors after the handshake (or from kill() mid-connect) end in 'close'; never let them crash the process.
+      ws.on('error', () => {});
       ws.on('message', (data) => this.onMessage(data.toString()));
       ws.on('close', (code, reason) => this.emit('close', code, reason.toString()));
     });

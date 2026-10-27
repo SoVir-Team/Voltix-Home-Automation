@@ -189,10 +189,20 @@ async function onOtaStatus(ctx: AppContext, auth: ControllerAuth, p: Payload): P
   if (!row) return;
   const status = statusMap[v.status];
   const progress = v.progress ?? (status === 'installing' ? 100 : 0);
-  await ctx.db
+  // Only move a target that is still in flight: the board may already have rebooted into the new version and
+  // been marked succeeded by its reconnect while this event was being processed.
+  const updated = await ctx.db
     .update(otaTargets)
     .set({ status, progress, error: v.error ?? null, updatedAt: new Date() })
-    .where(and(eq(otaTargets.rolloutId, row.rolloutId), eq(otaTargets.controllerId, auth.controllerId)));
+    .where(
+      and(
+        eq(otaTargets.rolloutId, row.rolloutId),
+        eq(otaTargets.controllerId, auth.controllerId),
+        inArray(otaTargets.status, [...IN_FLIGHT]),
+      ),
+    )
+    .returning({ status: otaTargets.status });
+  if (!updated.length) return;
   await publishProgress(ctx, auth.homeId, row.rolloutId, auth.controllerId, status, progress);
   if (status === 'failed') await pumpRollouts(ctx);
 }

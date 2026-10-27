@@ -96,6 +96,34 @@ Not automated by this repo. Set up:
   2. `pg_restore -d voltix_restore <dump>`
   3. Point a staging copy at it.
 
+## Capacity (load test)
+
+Measured on 2026-10-27 on a Windows dev laptop, with a production build of the backend (`LOG_LEVEL=warn`) and
+PostgreSQL 16 in Docker. Setup: 150 homes × 20 boards = 3,000 boards with 2 devices each (6,000 devices), all
+from one simulator process, plain `ws://` (TLS ends at the reverse proxy in production).
+
+| Phase                                                                           | Result                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connect, ramp 100 boards/s                                                      | 3,000/3,000 online; handshake → config p95 148 ms (33 ms once devices exist)                                                                                    |
+| Steady, 120 s                                                                   | 100 telemetry events/s and ~2.5 wall-switch presses/s accepted; 0 invalid messages                                                                              |
+| REST commands during steady state                                               | API → board → API round trip p50 25 ms, p95 105–147 ms; 0 errors. The p99 varied between runs (196–890 ms) because the same process also drove the 3,000 boards |
+| Reconnect storm (every socket cut, boards return over 1–10 s like the firmware) | all 3,000 back in ~15 s, 0 failures; handshakes queue for p50 ~4.3 s at ~330 connects/s                                                                         |
+| Backend process                                                                 | ~450 MB RSS with 3,000 boards, flat across two full runs (no leak); ~0.2 CPU core on average                                                                    |
+
+So a 2 vCPU / 4 GB VPS has ample headroom for the target. In a mass reconnect, the database pool (20
+connections) is the bottleneck; each connect costs about 7 queries.
+
+To repeat it (dev database only):
+
+```bash
+createdb voltix_load                    # or: docker exec voltix-postgres-1 createdb -U voltix voltix_load
+DATABASE_URL=postgres://voltix:voltix_dev@localhost:5433/voltix_load npm run db:migrate
+DATABASE_URL=postgres://voltix:voltix_dev@localhost:5433/voltix_load \
+  npx tsx --env-file=backend/.env backend/src/db/seed-load.ts --homes 150 --boards 20
+# start the built backend against voltix_load on port 4100, then:
+npx tsx tools/device-sim/src/load.ts --api http://localhost:4100 --boards 3000 --duration 120
+```
+
 ## Monitoring
 
 - `GET /api/health` for uptime checks (public, checks the database).

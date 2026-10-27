@@ -23,7 +23,17 @@ export const wsRoutes: FastifyPluginAsync<{ ctx: AppContext }> = async (app, { c
     '/device',
     {
       websocket: true,
-      config: { public: true, skipOriginCheck: true, rateLimit: { max: 30, timeWindow: '1 minute' } },
+      config: {
+        public: true,
+        skipOriginCheck: true,
+        // Per board, not per IP: many homes can share one carrier-NAT address, and after a power cut or
+        // server restart all their boards reconnect at once. Firmware backoff stays well under this.
+        rateLimit: {
+          max: 12,
+          timeWindow: '1 minute',
+          keyGenerator: (req) => `device:${req.headers['x-voltix-key'] ?? req.ip}`,
+        },
+      },
       preValidation: async (req) => {
         req.device = await ctx.services.gateway.authenticate(req.headers, req.ip);
       },
