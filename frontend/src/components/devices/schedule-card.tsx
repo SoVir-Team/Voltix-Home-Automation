@@ -176,8 +176,7 @@ function ScheduleSheet({
     >
       <div className="space-y-5">
         <p className="text-muted text-sm">
-          {device.name} turns on at the start time and off at the end time, in your home's time zone (
-          {home.timezone}).
+          {device.name} turns on at the start time and off at the end time, India time (IST).
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Start time">

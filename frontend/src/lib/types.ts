@@ -29,6 +29,8 @@ export interface Home {
   currency: string;
   memberPermissions: MemberPermissions;
   role: HomeRole;
+  /** Present in the GET /homes list. */
+  deviceCount?: number;
   createdAt: string;
 }
 

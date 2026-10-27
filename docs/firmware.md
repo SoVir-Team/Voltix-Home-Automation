@@ -59,6 +59,20 @@ unreachable, the portal opens for 5 minutes while the board keeps retrying.
 Credentials are stored in NVS and are never compiled into the firmware. The setup page never shows the stored
 secret; leave the field empty to keep it.
 
+### Bench test against a laptop
+
+For a quick test on the lab network, use this firmware, not a hand-written WebSocket sketch. The server
+refuses boards that don't sign their handshake. It also never accepts a key and secret sent inside a
+message, because a secret sent like that can be read off the wire.
+
+1. Run the backend on the laptop (`npm run dev`; it listens on all interfaces, port 4000). Allow port 4000 in
+   the laptop's firewall.
+2. Flash this firmware (`pio run -t upload`) and set the board up as above. For **Server**, enter
+   `ws://<laptop LAN IP>:4000`, for example `ws://10.207.68.10:4000`. Never put Wi-Fi passwords or board
+   secrets in source code.
+3. Relays are active-LOW and wired as in `include/board_config.h`. A relay on GPIO26 is **channel 2**; it
+   shows up in the app as "Switch 2". Toggle it there and watch `pio device monitor`.
+
 ## Writing a board sketch
 
 The **Templates** page generates a sketch for any channel layout. The shape is:

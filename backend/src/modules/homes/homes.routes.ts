@@ -11,20 +11,9 @@ import { audit } from '../audit/audit';
 import { createHomeFor } from '../auth/auth.routes';
 
 const homeId = z.object({ homeId: z.uuid() });
-const timezone = z
-  .string()
-  .max(64)
-  .refine((tz) => {
-    try {
-      new Intl.DateTimeFormat('en', { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'Unknown time zone');
+// No time zone field: every home uses the column default, Asia/Kolkata (India only).
 const homeBody = z.object({
   name: z.string().trim().min(1).max(80),
-  timezone: timezone.optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   tariffPerKwh: z.number().min(0).max(1000).optional(),
@@ -70,16 +59,16 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
       .from(homeMembers)
       .where(and(eq(homeMembers.userId, userId), eq(homeMembers.role, 'owner')));
     if ((owned[0]?.n ?? 0) >= 20) throw badRequest('You can own at most 20 homes', 'HOME_LIMIT');
-    const home = await createHomeFor(ctx, userId, { name: req.body.name, timezone: req.body.timezone }, []);
-    const { name: _n, timezone: _t, memberPermissions, ...rest } = req.body;
-    const [updated] = await ctx.db
-      .update(homes)
-      .set({
-        ...rest,
-        ...(memberPermissions && { memberPermissions: { ...home.memberPermissions, ...memberPermissions } }),
-      })
-      .where(eq(homes.id, home.id))
-      .returning();
+    const home = await createHomeFor(ctx, userId, req.body.name, []);
+    const { name: _n, memberPermissions, ...rest } = req.body;
+    const extra = {
+      ...rest,
+      ...(memberPermissions && { memberPermissions: { ...home.memberPermissions, ...memberPermissions } }),
+    };
+    // A name-only request (what the app sends) has nothing more to set, and an empty SET is an error.
+    const [updated] = Object.keys(extra).length
+      ? await ctx.db.update(homes).set(extra).where(eq(homes.id, home.id)).returning()
+      : [home];
     await audit(ctx, req, 'home.create', { type: 'home', id: home.id });
     return reply.code(201).send({ home: { ...updated!, role: 'owner' } });
   });
@@ -102,14 +91,13 @@ export const homesRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (ap
       const { memberPermissions, ...rest } = req.body;
       if (memberPermissions && access.role !== 'owner')
         throw forbidden('Only owners can change member permissions');
-      const [home] = await ctx.db
-        .update(homes)
-        .set({
-          ...rest,
-          ...(memberPermissions && { memberPermissions: { ...access.permissions, ...memberPermissions } }),
-        })
-        .where(eq(homes.id, req.params.homeId))
-        .returning();
+      const changes = {
+        ...rest,
+        ...(memberPermissions && { memberPermissions: { ...access.permissions, ...memberPermissions } }),
+      };
+      const [home] = Object.keys(changes).length
+        ? await ctx.db.update(homes).set(changes).where(eq(homes.id, req.params.homeId)).returning()
+        : await ctx.db.select().from(homes).where(eq(homes.id, req.params.homeId));
       await audit(
         ctx,
         req,

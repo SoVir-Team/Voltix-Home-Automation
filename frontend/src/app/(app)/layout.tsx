@@ -54,16 +54,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 /** Someone who left every home (or whose home was deleted) starts here. */
 function FirstHome() {
   const [name, setName] = useState('My Home');
-  const create = useApiMutation(
-    (n: string) =>
-      api.post<{ home: Home }>('/homes', {
-        name: n,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-    {
-      invalidate: [qk.homes],
-    },
-  );
+  const create = useApiMutation((n: string) => api.post<{ home: Home }>('/homes', { name: n }), {
+    invalidate: [qk.homes],
+  });
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <form

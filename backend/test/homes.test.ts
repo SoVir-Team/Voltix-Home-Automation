@@ -27,6 +27,16 @@ describe('homes, rooms and members', () => {
     expect((await b.client.get(`/homes/${a.homeId}/devices`)).status).toBe(404);
   });
 
+  it('every home is on India time; clients cannot pick another zone', async () => {
+    const a = await signUp(t);
+    expect((await a.client.get(`/homes/${a.homeId}`)).body.home.timezone).toBe('Asia/Kolkata');
+    const created = await a.client.post('/homes', { name: 'Kabul flat', timezone: 'Asia/Kabul' });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(created.body.home.timezone).toBe('Asia/Kolkata');
+    const patched = await a.client.patch(`/homes/${a.homeId}`, { timezone: 'Indian/Antananarivo' });
+    expect(patched.body.home.timezone).toBe('Asia/Kolkata');
+  });
+
   it('invite flow: only the invited email can accept; members cannot manage the home', async () => {
     const owner = await signUp(t, 'Owner');
     const member = await inviteAndJoin(owner, 'member');

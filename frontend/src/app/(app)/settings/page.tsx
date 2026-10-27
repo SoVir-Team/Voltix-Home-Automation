@@ -1,13 +1,13 @@
 'use client';
 
 import { Check, House, LocateFixed, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useHome } from '@/components/home-context';
 import { Page, PageHeader } from '@/components/layout/page';
 import { Button } from '@/components/ui/button';
 import { Card, SectionHeader } from '@/components/ui/card';
-import { Field, Input, Select } from '@/components/ui/field';
+import { Field, Input } from '@/components/ui/field';
 import { Badge } from '@/components/ui/misc';
 import { ConfirmSheet, Sheet } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
@@ -64,7 +64,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold">{h.name}</p>
-                  <p className="truncate text-muted text-sm">{h.timezone}</p>
+                  <p className="truncate text-muted text-sm">
+                    {h.deviceCount ?? 0} {h.deviceCount === 1 ? 'device' : 'devices'}
+                  </p>
                 </div>
                 <Badge tone={h.role === 'member' ? 'muted' : 'brand'}>{titleCase(h.role)}</Badge>
                 {h.id === home.id && (
@@ -107,10 +109,8 @@ export default function SettingsPage() {
 }
 
 function HomeForm({ home, editable }: { home: Home; editable: boolean }) {
-  const zones = useMemo(() => Intl.supportedValuesOf('timeZone'), []);
   const [f, setF] = useState({
     name: home.name,
-    timezone: home.timezone,
     latitude: home.latitude?.toString() ?? '',
     longitude: home.longitude?.toString() ?? '',
     tariffPerKwh: String(home.tariffPerKwh),
@@ -124,7 +124,6 @@ function HomeForm({ home, editable }: { home: Home; editable: boolean }) {
     () =>
       api.patch(`/homes/${home.id}`, {
         name: f.name.trim(),
-        timezone: f.timezone,
         latitude: num(f.latitude),
         longitude: num(f.longitude),
         tariffPerKwh: Number(f.tariffPerKwh) || 0,
@@ -159,15 +158,6 @@ function HomeForm({ home, editable }: { home: Home; editable: boolean }) {
         <fieldset disabled={!editable} className="space-y-5">
           <Field label="Home name">
             <Input required maxLength={80} value={f.name} onChange={set('name')} />
-          </Field>
-          <Field label="Time zone" hint="Schedules and energy days follow this time zone.">
-            <Select value={f.timezone} onChange={set('timezone')}>
-              {zones.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </Select>
           </Field>
           <div>
             <div className="grid grid-cols-2 gap-3">
@@ -233,22 +223,15 @@ function HomeForm({ home, editable }: { home: Home; editable: boolean }) {
 function NewHomeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { setHomeId } = useHome();
   const [name, setName] = useState('');
-  const create = useApiMutation(
-    () =>
-      api.post<{ home: Home }>('/homes', {
-        name: name.trim(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-    {
-      invalidate: [qk.homes],
-      success: 'Home created',
-      onSuccess: (r) => {
-        setName('');
-        onClose();
-        setHomeId(r.home.id);
-      },
+  const create = useApiMutation(() => api.post<{ home: Home }>('/homes', { name: name.trim() }), {
+    invalidate: [qk.homes],
+    success: 'Home created',
+    onSuccess: (r) => {
+      setName('');
+      onClose();
+      setHomeId(r.home.id);
     },
-  );
+  });
   return (
     <Sheet
       open={open}

@@ -93,13 +93,14 @@ async function sendVerification(ctx: AppContext, user: { id: string; email: stri
 export async function createHomeFor(
   ctx: AppContext,
   userId: string,
-  input: { name: string; timezone?: string },
+  name: string,
   starterRooms = ['Living Room', 'Kitchen', 'Bedroom'],
 ) {
   return ctx.db.transaction(async (tx) => {
     const [home] = await tx
       .insert(homes)
-      .values({ name: input.name, timezone: input.timezone ?? 'Asia/Kolkata', createdBy: userId })
+      .values({ name, createdBy: userId }) // timezone: column default Asia/Kolkata
+
       .returning();
     await tx.insert(homeMembers).values({ homeId: home!.id, userId, role: 'owner' });
     if (starterRooms.length) {
@@ -135,12 +136,11 @@ export const authRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (app
           name: nameSchema,
           email: emailSchema,
           password: passwordSchema,
-          timezone: z.string().max(64).optional(),
         }),
       },
     },
     async (req, reply) => {
-      const { name, email, password, timezone } = req.body;
+      const { name, email, password } = req.body;
       const existing = await ctx.db
         .select({ id: users.id })
         .from(users)
@@ -151,7 +151,7 @@ export const authRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async (app
         .insert(users)
         .values({ name, email, passwordHash: await hashPassword(password) })
         .returning();
-      await createHomeFor(ctx, user!.id, { name: 'My Home', timezone });
+      await createHomeFor(ctx, user!.id, 'My Home');
       await sendVerification(ctx, user!).catch((err) => ctx.log.error({ err }, 'verification email failed'));
       await audit(ctx, req, 'auth.register', { type: 'user', id: user!.id });
       if (ctx.env.REQUIRE_EMAIL_VERIFICATION) {

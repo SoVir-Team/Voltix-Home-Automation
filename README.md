@@ -85,7 +85,7 @@ The shared registry defines **17 templates**. A template describes capabilities;
 - **Sensor response:** when a temperature reading crosses a threshold, run a device action or scene. Hysteresis helps prevent repeated firing near the threshold.
 - **One tap before bed:** run a scene containing the device states you want.
 
-Time-based rules use the **home's time zone**. Device triggers fire on qualifying transitions. Cooldowns and a chain-depth guard limit automation loops. The scheduler runs in the backend, so server availability matters.
+Time-based rules use **India time (IST, Asia/Kolkata)**; every home is in India. Device triggers fire on qualifying transitions. Cooldowns and a chain-depth guard limit automation loops. The scheduler runs in the backend, so server availability matters.
 
 ## Technology stack
 
@@ -279,18 +279,18 @@ The default device endpoint is `ws://localhost:4000/api/v1/device`. `--sensor` a
 
 ## Your first home
 
-| Step | In the app                   | What to do                                                                                                                       |
-| ---- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | **Settings**                 | Name your home, check its time zone, and set latitude/longitude for sun rules. Set tariff per kWh and currency for energy costs. |
-| 2    | **Rooms**                    | Create rooms and choose icons.                                                                                                   |
-| 3    | **Devices → Add Device**     | Create controller credentials, connect real or simulated hardware, then name and place its discovered channels.                  |
-| 4    | **Devices**                  | Open a device to use its controls, inspect activity/readings, and configure supported settings and schedules.                    |
-| 5    | **Scenes**                   | Save a group of actions, then run the scene to check the result on connected devices.                                            |
-| 6    | **Automations**              | Choose a trigger, add conditions when needed, select actions, and enable the rule.                                               |
-| 7    | **User Access**              | Invite family and assign roles. Owners can change the permissions shared by ordinary members.                                    |
-| 8    | **Notifications**            | Review alerts and configure delivery preferences. Enable browser push on each browser you want to receive alerts.                |
-| 9    | **Energy**                   | Review consumption once history accumulates. Configure rated watts on devices without a physical meter.                          |
-| 10   | **Account / Boards / Admin** | Manage sessions and API keys, maintain boards, or administer the platform when your role allows it.                              |
+| Step | In the app                   | What to do                                                                                                        |
+| ---- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1    | **Settings**                 | Name your home and set latitude/longitude for sun rules. Set tariff per kWh and currency for energy costs.        |
+| 2    | **Rooms**                    | Create rooms and choose icons.                                                                                    |
+| 3    | **Devices → Add Device**     | Create controller credentials, connect real or simulated hardware, then name and place its discovered channels.   |
+| 4    | **Devices**                  | Open a device to use its controls, inspect activity/readings, and configure supported settings and schedules.     |
+| 5    | **Scenes**                   | Save a group of actions, then run the scene to check the result on connected devices.                             |
+| 6    | **Automations**              | Choose a trigger, add conditions when needed, select actions, and enable the rule.                                |
+| 7    | **User Access**              | Invite family and assign roles. Owners can change the permissions shared by ordinary members.                     |
+| 8    | **Notifications**            | Review alerts and configure delivery preferences. Enable browser push on each browser you want to receive alerts. |
+| 9    | **Energy**                   | Review consumption once history accumulates. Configure rated watts on devices without a physical meter.           |
+| 10   | **Account / Boards / Admin** | Manage sessions and API keys, maintain boards, or administer the platform when your role allows it.               |
 
 ### Roles and access
 
@@ -608,7 +608,7 @@ The board downloads over HTTPS, verifies size/checksum, writes the inactive OTA 
 | ESP32 never connects locally               | Use the computer's LAN IP and port **4000** with an explicit `ws://` URL; check firewall, Wi-Fi, backend binding, board credentials, and clock synchronization. |
 | Board stopped after secret rotation        | Reprovision it with the newly generated credentials. Old credentials are intentionally invalid.                                                                 |
 | Push alerts absent                         | Configure VAPID keys, use a supported browser/secure context, grant notification permission, and enable that alert category.                                    |
-| Sunrise/sunset rule does not run           | Configure home coordinates and time zone; confirm the rule is enabled and the backend is running.                                                               |
+| Sunrise/sunset rule does not run           | Configure home coordinates; confirm the rule is enabled and the backend is running.                                                                             |
 | Energy is zero or approximate              | Set device rated watts, allow usage history to accumulate, and check that a physical meter actually reports readings if measured values are expected.           |
 | Backend tests cannot connect               | Create a dedicated `voltix_test` database or set `TEST_DATABASE_URL` to another disposable database.                                                            |
 | Relay control works but fan speed does not | Stock firmware only switches fan relays; it stores/reports level without driving speed hardware.                                                                |

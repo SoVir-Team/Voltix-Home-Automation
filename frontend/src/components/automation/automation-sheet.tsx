@@ -125,7 +125,7 @@ export function AutomationSheet({
           <section>
             <h3 className="mb-3 font-bold text-lg">When</h3>
             <TriggerEditor trigger={trigger} onChange={setTrigger} devices={devices} tab={tab} />
-            <p className="mt-2 text-muted text-xs">Times use the home's time zone ({home.timezone}).</p>
+            <p className="mt-2 text-muted text-xs">Times are India time (IST).</p>
           </section>
 
           {trigger.kind === 'device' && (
