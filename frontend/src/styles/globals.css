@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/*
+ * Voltix design tokens. Brand = the cyan of the Voltix bolt; everything else is white surfaces and navy ink.
+ * Components use these tokens only (no raw hex), so re-theming is a change in this block.
+ */
+@theme {
+  --font-sans: var(--font-noto), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-brand-50: #eef9fe;
+  --color-brand-100: #dcf2fc;
+  --color-brand-200: #b6e5f8;
+  --color-brand-300: #7fd2f3;
+  --color-brand-400: #3fbcec;
+  --color-brand-500: #1ba8e0;
+  --color-brand-600: #128bc4;
+  --color-brand-700: #0f6f9e;
+
+  --color-ink: #0f1b33;
+  --color-ink-soft: #33415c;
+  --color-muted: #6b7a99;
+  --color-subtle: #9aa6bf;
+  --color-line: #e3e9f3;
+
+  --color-canvas: #f5f8fd;
+  --color-surface: #ffffff;
+  --color-tint: #f0f6fd;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #e5484d;
+
+  --radius-card: 1.75rem;
+  --radius-tile: 1.25rem;
+
+  --shadow-card: 0 10px 30px -12px rgb(27 168 224 / 0.18), 0 2px 6px -2px rgb(15 27 51 / 0.06);
+  --shadow-float: 0 18px 40px -16px rgb(18 139 196 / 0.45);
+  --shadow-nav: 0 -6px 30px -10px rgb(15 27 51 / 0.12);
+
+  --animate-sweep: sweep 3.2s linear infinite;
+  --animate-pulse-ring: pulse-ring 2.4s ease-out infinite;
+  --animate-pop: pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  /* Uses the standalone `scale` property so it composes with Tailwind's translate utilities. */
+  @keyframes pop {
+    from {
+      scale: 0.5;
+      opacity: 0;
+    }
+  }
+
+  @keyframes sweep {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(1.4);
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+  input,
+  select,
+  textarea {
+    /* iOS zooms into inputs smaller than 16px */
+    font-size: max(16px, 1em);
+  }
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(100deg, #3fbcec 0%, #1ba8e0 45%, #128bc4 100%);
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(100deg, #3fbcec, #128bc4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
