@@ -1,0 +1,32 @@
+{
+  "name": "voltix",
+  "private": true,
+  "description": "Voltix home automation platform: Next.js web app, Node.js backend, PostgreSQL, ESP32 firmware.",
+  "workspaces": [
+    "packages/*",
+    "backend",
+    "frontend",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev:db": "docker compose up -d",
+    "dev:backend": "npm run dev -w @voltix/backend",
+    "dev:frontend": "npm run dev -w @voltix/frontend",
+    "db:migrate": "npm run db:migrate -w @voltix/backend",
+    "db:seed": "npm run db:seed -w @voltix/backend",
+    "build": "npm run build -w @voltix/backend && npm run build -w @voltix/frontend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@types/node": "^24.19.2",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

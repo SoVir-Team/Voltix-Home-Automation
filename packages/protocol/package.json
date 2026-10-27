@@ -1,0 +1,23 @@
+{
+  "name": "@voltix/protocol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Voltix device protocol: message envelope, capability registry, device templates, signing.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts",
+    "./test-vectors.json": "./test-vectors.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "vectors": "tsx scripts/make-vectors.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

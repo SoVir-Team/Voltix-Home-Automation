@@ -1,0 +1,34 @@
+{
+  "secret": "test-secret-0123456789abcdef0123456789abcdef",
+  "messages": [
+    {
+      "message": "{\"header\":{\"payloadVersion\":2,\"signatureVersion\":1},\"payload\":{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerState\",\"type\":\"request\",\"value\":{\"state\":\"On\"}},\"signature\":{\"HMAC\":\"2lofmW5JOJkl1IITF5c3LI5hFuIyM8BPVTfaQpaFXYY=\"}}",
+      "rawPayload": "{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerState\",\"type\":\"request\",\"value\":{\"state\":\"On\"}}",
+      "hmac": "2lofmW5JOJkl1IITF5c3LI5hFuIyM8BPVTfaQpaFXYY="
+    },
+    {
+      "message": "{\"header\":{\"payloadVersion\":2,\"signatureVersion\":1},\"payload\":{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerLevel\",\"type\":\"response\",\"value\":{\"powerLevel\":40},\"success\":true,\"message\":\"OK\"},\"signature\":{\"HMAC\":\"2T5eu7sc4EfyJmqaJqepM+T1y6xorhS5APJvbrr9vXg=\"}}",
+      "rawPayload": "{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerLevel\",\"type\":\"response\",\"value\":{\"powerLevel\":40},\"success\":true,\"message\":\"OK\"}",
+      "hmac": "2T5eu7sc4EfyJmqaJqepM+T1y6xorhS5APJvbrr9vXg="
+    },
+    {
+      "message": "{\"header\":{\"payloadVersion\":2,\"signatureVersion\":1},\"payload\":{\"clientId\":\"physical\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerState\",\"type\":\"event\",\"value\":{\"state\":\"Off\"},\"cause\":{\"type\":\"PHYSICAL_INTERACTION\"}},\"signature\":{\"HMAC\":\"0YcSN/8H2Rrn+UDiZqVmfGdGyw7vvsByJDX8kvRbyHM=\"}}",
+      "rawPayload": "{\"clientId\":\"physical\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setPowerState\",\"type\":\"event\",\"value\":{\"state\":\"Off\"},\"cause\":{\"type\":\"PHYSICAL_INTERACTION\"}}",
+      "hmac": "0YcSN/8H2Rrn+UDiZqVmfGdGyw7vvsByJDX8kvRbyHM="
+    },
+    {
+      "message": "{\"header\":{\"payloadVersion\":2,\"signatureVersion\":1},\"payload\":{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setMode\",\"type\":\"request\",\"value\":{\"mode\":\"Ouvrir \\\"porte\\\" \\\\ é ✓ }\"}},\"signature\":{\"HMAC\":\"L0SEfW0BkGEya1HnYKNdrTYe3SuBzsZtVistzi469qM=\"}}",
+      "rawPayload": "{\"clientId\":\"web\",\"createdAt\":1767225600,\"deviceId\":\"dev_0001\",\"replyToken\":\"rt-0001\",\"action\":\"setMode\",\"type\":\"request\",\"value\":{\"mode\":\"Ouvrir \\\"porte\\\" \\\\ é ✓ }\"}}",
+      "hmac": "L0SEfW0BkGEya1HnYKNdrTYe3SuBzsZtVistzi469qM="
+    }
+  ],
+  "handshake": {
+    "keyId": "vxc_test",
+    "ts": 1767225600,
+    "signature": "mwkZCjqQJsoPZgQyRMbM2EqYWhQA4OpIfOOruLRYf7c="
+  },
+  "plain": {
+    "data": "hello",
+    "hmac": "6jCTddc4Q5ECk501Z2Zgbe7J1okTmNrI/GjYbSTGmiY="
+  }
+}

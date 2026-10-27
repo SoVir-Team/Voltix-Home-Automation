@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets
+.env
+.env.*
+!.env.example
+**/secrets.h
+
+# runtime data
+storage/
+*.log
+
+# firmware
+firmware/.pio/
+firmware/.vscode/
+*.bin
+
+# tests
+playwright-report/
+test-results/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
