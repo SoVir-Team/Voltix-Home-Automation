@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAYLOAD_VERSION, SIGNATURE_VERSION } from './limits';
+import { MAX_CHANNELS, PAYLOAD_VERSION, SIGNATURE_VERSION } from './limits';
 
 export const messageTypes = ['request', 'response', 'event'] as const;
 export type MessageType = (typeof messageTypes)[number];
@@ -95,7 +95,9 @@ export function parseChannelsHeader(header: string | undefined): { channel: numb
     const m = /^\s*(\d{1,2}):([a-zA-Z][a-zA-Z0-9_-]{0,31})\s*$/.exec(part);
     if (!m) throw new Error(`invalid channel declaration "${part}"`);
     const channel = Number(m[1]);
-    if (channel < 1 || seen.has(channel)) throw new Error(`invalid or duplicate channel ${channel}`);
+    if (channel < 1 || channel > MAX_CHANNELS || seen.has(channel)) {
+      throw new Error(`invalid or duplicate channel ${channel}`);
+    }
     seen.add(channel);
     out.push({ channel, type: m[2]! });
   }

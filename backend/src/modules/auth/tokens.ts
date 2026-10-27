@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { jwtVerify, SignJWT } from 'jose';
 import type { Env } from '../../config/env';
@@ -109,7 +109,7 @@ export async function rotateSession(
     .limit(1);
   if (!row) throw unauthorized('Session expired, please sign in again');
 
-  if (row.token.revokedAt) {
+  if (row.token.revokedAt && !(await isConcurrentRefresh(ctx, row.token))) {
     await ctx.db
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
@@ -122,11 +122,39 @@ export async function rotateSession(
   }
 
   const tokens = await startSession(ctx, req, reply, row.user, row.token.familyId);
-  await ctx.db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date(), lastUsedAt: new Date() })
-    .where(eq(refreshTokens.id, row.token.id));
+  if (!row.token.revokedAt) {
+    await ctx.db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date(), lastUsedAt: new Date() })
+      .where(eq(refreshTokens.id, row.token.id));
+  }
   return { user: row.user, tokens };
+}
+
+const REUSE_GRACE_MS = 30_000;
+
+/**
+ * Two tabs (or a tab and the realtime socket) often refresh with the same cookie at the same moment; the
+ * second one is not a thief. Allow a token that was *rotated* (lastUsedAt is only set by rotation) in the
+ * last 30 s, as long as its session is still alive, i.e. not ended by logout or a password change.
+ */
+async function isConcurrentRefresh(
+  ctx: AppContext,
+  token: typeof refreshTokens.$inferSelect,
+): Promise<boolean> {
+  if (!token.lastUsedAt || Date.now() - token.revokedAt!.getTime() > REUSE_GRACE_MS) return false;
+  const [alive] = await ctx.db
+    .select({ id: refreshTokens.id })
+    .from(refreshTokens)
+    .where(
+      and(
+        eq(refreshTokens.familyId, token.familyId),
+        isNull(refreshTokens.revokedAt),
+        gt(refreshTokens.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return !!alive;
 }
 
 export async function revokeFamilyOf(ctx: AppContext, presented: string) {

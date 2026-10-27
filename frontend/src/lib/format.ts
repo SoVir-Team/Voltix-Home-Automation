@@ -93,14 +93,6 @@ export function stateSummary(d: Device): string {
 
 export const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-/** Device categories for member permissions (mirrors backend permissionArea). */
-export function deviceArea(type: string): 'locks' | 'lighting' | 'climate' | null {
-  if (type === 'lock' || type === 'garageDoor') return 'locks';
-  if (['light', 'dimSwitch', 'switch'].includes(type)) return 'lighting';
-  if (['thermostat', 'windowAC', 'fan'].includes(type)) return 'climate';
-  return null;
-}
-
 /**
  * Only follow same-site paths after sign-in. Parse instead of pattern-matching: URL parsers drop tabs and
  * newlines, so "/\t/evil.com" becomes //evil.com (as do //evil.com and /\evil.com).

@@ -23,17 +23,6 @@ export const metrics = {
 } as const;
 export type MetricName = keyof typeof metrics;
 export const metricNames = Object.keys(metrics) as MetricName[];
-export const metricUnits: Record<MetricName, string> = {
-  temperature: '°C',
-  humidity: '%',
-  pm1: 'µg/m³',
-  pm25: 'µg/m³',
-  pm10: 'µg/m³',
-  power: 'W',
-  voltage: 'V',
-  current: 'A',
-  energyWh: 'Wh',
-};
 
 interface ActionDef {
   value: z.ZodType<Record<string, unknown>>;
@@ -319,11 +308,4 @@ export function findEvent(caps: readonly string[], action: string): EventDef | u
     if (def) return def;
   }
   return undefined;
-}
-
-/** Every action a set of capabilities accepts, for docs and UI. */
-export function actionsFor(caps: readonly string[]): string[] {
-  return caps.flatMap((c) =>
-    isCapability(c) ? Object.keys((capabilities[c] as CapabilityDef).actions) : [],
-  );
 }

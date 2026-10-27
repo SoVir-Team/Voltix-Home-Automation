@@ -159,13 +159,3 @@ export function watchKeysFor(d: Device): WatchKey[] {
   if (has('airQuality')) keys.push({ key: 'pm25', label: 'PM2.5', unit: 'µg/m³' });
   return keys;
 }
-
-/** "Turn on", "Set brightness 70%", "Set mode COOL". */
-export function describeStep(d: Device | undefined, action: string, value: Record<string, unknown>): string {
-  if (!d) return 'Removed device';
-  const op = matchOp(d, action, value);
-  if (!op) return action;
-  if (op.fixed) return op.label;
-  const v = value[op.input!.key];
-  return `${op.label} ${v}${op.input!.unit ?? ''}`;
-}

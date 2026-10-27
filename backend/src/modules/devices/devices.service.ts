@@ -8,7 +8,7 @@ import {
   type Payload,
   TELEMETRY_MIN_INTERVAL_S,
 } from '@voltix/protocol/node';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { AppContext } from '../../context';
 import {
   controllers,
@@ -339,8 +339,4 @@ export async function executeAction(
     actorUserId: opts.actorUserId,
     depth: opts.depth,
   });
-}
-
-export async function loadDevices(ctx: AppContext, ids: string[]) {
-  return ids.length ? ctx.db.select().from(devices).where(inArray(devices.id, ids)) : [];
 }

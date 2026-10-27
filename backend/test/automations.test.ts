@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { automations, deviceState, devices, energyDaily } from '../src/db/schema';
 import { MAX_DEPTH } from '../src/modules/automations/engine';
 import { applyState } from '../src/modules/devices/state.service';
@@ -38,6 +38,33 @@ describe('scenes, automations and energy', () => {
       actions: [{ deviceId: a.id, action: 'setPowerState', value: { state: 'Off' } }],
     });
     expect(bad.status).toBe(400);
+    await board.close();
+  });
+
+  it('a failing background run is logged, not left to crash the process', async () => {
+    const { client, homeId } = await signUp(t);
+    const { board } = await connectBoard(t, client, homeId, { 1: 'switch' });
+    const [d] = (await client.get(`/homes/${homeId}/devices`)).body.devices;
+    const created = await client.post(`/homes/${homeId}/automations`, {
+      name: 'Broken',
+      trigger: { kind: 'window', start: '18:00', end: '23:00' },
+      actions: [{ kind: 'device', deviceId: d.id, action: 'setPowerState', value: { state: 'On' } }],
+      endActions: [{ kind: 'device', deviceId: d.id, action: 'setPowerState', value: { state: 'Off' } }],
+    });
+    const id = created.body.automation.id;
+    // Stored steps that no longer parse make run() throw outside its per-step error handling.
+    const bogus = [{ kind: 'bogus' }] as never;
+    await t.ctx.db
+      .update(automations)
+      .set({ actions: bogus, endActions: bogus })
+      .where(eq(automations.id, id));
+    const engine = t.ctx.services.automations;
+    engine.stop();
+    const logged = vi.spyOn(t.ctx.log, 'error');
+    const [row] = await t.ctx.db.select().from(automations).where(eq(automations.id, id));
+    await engine.tick(new Date(row!.nextRunAt!.getTime() + 1000));
+    await waitFor(() => logged.mock.calls.some((c) => c[1] === 'automation run failed'));
+    logged.mockRestore();
     await board.close();
   });
 

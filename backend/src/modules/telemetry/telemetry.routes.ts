@@ -1,5 +1,5 @@
 import { metricNames, metrics } from '@voltix/protocol';
-import { and, asc, eq, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte } from 'drizzle-orm';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { AppContext } from '../../context';
@@ -42,9 +42,13 @@ export const telemetryRoutes: FastifyPluginAsyncZod<{ ctx: AppContext }> = async
               gte(sensorReadings.ts, since),
             ),
           )
-          .orderBy(asc(sensorReadings.ts))
+          // Newest first so the cap drops the oldest points, then back to oldest-first for the chart.
+          .orderBy(desc(sensorReadings.ts))
           .limit(5000);
-        return { metric: req.query.metric, points: rows.map((r) => ({ t: r.ts.getTime(), v: r.value })) };
+        return {
+          metric: req.query.metric,
+          points: rows.reverse().map((r) => ({ t: r.ts.getTime(), v: r.value })),
+        };
       }
       const rows = await ctx.db
         .select()

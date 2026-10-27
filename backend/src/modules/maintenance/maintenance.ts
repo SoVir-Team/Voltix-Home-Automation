@@ -27,14 +27,22 @@ export class Maintenance {
   }
 
   private async locked(fn: () => Promise<void>): Promise<void> {
-    const [row] = await this.ctx.sql<{ ok: boolean }[]>`SELECT pg_try_advisory_lock(${LOCK_ID}) AS ok`;
-    if (!row?.ok) return;
+    // Session locks belong to one connection: take and release on the same reserved one, not the pool.
+    // Never throws: callers fire and forget, and an unhandled rejection would stop the process.
+    let conn: Awaited<ReturnType<typeof this.ctx.sql.reserve>> | undefined;
     try {
-      await fn();
+      conn = await this.ctx.sql.reserve();
+      const [row] = await conn<{ ok: boolean }[]>`SELECT pg_try_advisory_lock(${LOCK_ID}) AS ok`;
+      if (!row?.ok) return;
+      try {
+        await fn();
+      } finally {
+        await conn`SELECT pg_advisory_unlock(${LOCK_ID})`;
+      }
     } catch (err) {
       this.ctx.log.error({ err }, 'maintenance failed');
     } finally {
-      await this.ctx.sql`SELECT pg_advisory_unlock(${LOCK_ID})`;
+      conn?.release();
     }
   }
 

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { sha256 } from '../src/lib/crypto';
 import { Client, resetDb, signUp, startApp, type TestApp } from './helpers';
 
 let t: TestApp;
@@ -72,11 +73,35 @@ describe('auth', () => {
     const second = client.cookies.get('vx_rt')!;
     expect(second).not.toBe(first);
 
-    // An attacker replays the old token: rejected, and the legitimate session dies too.
+    // An attacker replays the old token later: rejected, and the legitimate session dies too.
+    await t.ctx.sql`UPDATE refresh_tokens SET revoked_at = now() - interval '1 minute'
+      WHERE token_hash = ${sha256(first)}`;
     const attacker = new Client(t);
     attacker.cookies.set('vx_rt', first);
     expect((await attacker.post('/auth/refresh')).status).toBe(401);
     expect((await client.post('/auth/refresh')).status).toBe(401);
+  });
+
+  it('two tabs refreshing with the same token at once both stay signed in', async () => {
+    const { client } = await signUp(t);
+    const shared = client.cookies.get('vx_rt')!;
+    const otherTab = new Client(t);
+    otherTab.cookies.set('vx_rt', shared);
+    expect((await client.post('/auth/refresh')).status).toBe(200);
+    // the second tab sent the same cookie before the first answer arrived
+    expect((await otherTab.post('/auth/refresh')).status).toBe(200);
+    expect((await client.post('/auth/refresh')).status).toBe(200);
+    expect((await otherTab.post('/auth/refresh')).status).toBe(200);
+  });
+
+  it('a just-rotated token gets no grace once the session was ended on purpose', async () => {
+    const { client } = await signUp(t);
+    const old = client.cookies.get('vx_rt')!;
+    expect((await client.post('/auth/refresh')).status).toBe(200);
+    expect((await client.post('/auth/logout')).status).toBe(204);
+    const replay = new Client(t);
+    replay.cookies.set('vx_rt', old);
+    expect((await replay.post('/auth/refresh')).status).toBe(401);
   });
 
   it('refreshes from the cookie alone, with no request body (what browsers send)', async () => {

@@ -87,6 +87,11 @@ describe('parseChannelsHeader', () => {
     expect(() => parseChannelsHeader('0:switch')).toThrow();
     expect(() => parseChannelsHeader('1:sw itch')).toThrow();
   });
+  it('allows channels 1..32 only, like the firmware', () => {
+    expect(parseChannelsHeader('32:switch')).toEqual([{ channel: 32, type: 'switch' }]);
+    expect(() => parseChannelsHeader('33:switch')).toThrow();
+    expect(() => parseChannelsHeader('99:switch')).toThrow();
+  });
 });
 
 describe('capabilities', () => {

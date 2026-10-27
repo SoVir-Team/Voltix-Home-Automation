@@ -125,7 +125,13 @@ export class AutomationEngine {
           continue;
         }
         const steps = a.nextEdge === 'end' ? a.endActions : a.actions;
-        void this.run(a, steps, { scheduled: a.nextRunAt!.toISOString(), edge: a.nextEdge }, 0, 'schedule');
+        this.runInBackground(
+          a,
+          steps,
+          { scheduled: a.nextRunAt!.toISOString(), edge: a.nextEdge },
+          0,
+          'schedule',
+        );
       }
     } catch (err) {
       this.ctx.log.error({ err }, 'automation tick failed');
@@ -153,7 +159,7 @@ export class AutomationEngine {
       const last = this.lastFired.get(a.id) ?? 0;
       if (Date.now() - last < a.cooldownS * 1000) continue;
       this.lastFired.set(a.id, Date.now());
-      void this.run(
+      this.runInBackground(
         a,
         a.actions,
         { deviceId: device.id, key: t.key, value: next[t.key] },
@@ -161,6 +167,13 @@ export class AutomationEngine {
         'automation',
       );
     }
+  }
+
+  /** Nobody awaits these runs; an unhandled rejection would stop the whole process. */
+  private runInBackground(...args: Parameters<AutomationEngine['run']>): void {
+    this.run(...args).catch((err) =>
+      this.ctx.log.error({ err, automationId: args[0].id }, 'automation run failed'),
+    );
   }
 
   private deviceTriggerFires(

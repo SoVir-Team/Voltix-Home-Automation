@@ -82,8 +82,10 @@ export class NotificationService {
           .returning();
         this.ctx.bus.publishUser(userId, { type: 'notification.new', notification: row! });
       }
-      if (pref.push) void this.push(userId, input);
-      if (pref.email) void this.email(userId, input);
+      // Not awaited (slow network calls); catch so a database error can't become an unhandled rejection.
+      if (pref.push) this.push(userId, input).catch((err) => this.ctx.log.warn({ err }, 'web push failed'));
+      if (pref.email)
+        this.email(userId, input).catch((err) => this.ctx.log.warn({ err }, 'notification email failed'));
     }
   }
 

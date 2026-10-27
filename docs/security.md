@@ -41,6 +41,9 @@ Logs redact authorization headers, cookies, passwords and secrets.
   rate-limited (10/min per IP). Password reset gives the same answer either way.
 - **CSP allows inline scripts** (`'unsafe-inline'`). Next.js's bootstrap scripts are inline; nonces would
   make every page server-rendered on each request.
+- **Refresh-token reuse has a 30 s grace.** Two tabs often refresh with the same cookie at once, so a token
+  rotated in the last 30 s is accepted again while its session is alive. Later reuse, or reuse after logout
+  or a password change, still revokes the whole session.
 
 ### Review log
 
@@ -50,6 +53,9 @@ Logs redact authorization headers, cookies, passwords and secrets.
   - Open redirect after sign-in via a tab or newline in `?next=`.
   - The web app sent no CSP.
   - `npm audit --omit=dev`: no known vulnerabilities.
+- 2026-10-27, code audit. Fixed: housekeeping lock taken and released on different pooled connections
+  (jobs silently skipped), background errors that could stop the process, the 24 h sensor chart dropping
+  the newest readings, two-tab refresh sign-outs, boards declaring channels above 32; dead code removed.
 
 ## Operator responsibilities
 

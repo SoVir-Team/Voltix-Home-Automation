@@ -91,11 +91,3 @@ export function Avatar({ name, size = 40, className }: { name: string; size?: nu
 }
 
 /** Small status dot with label (online/offline). */
-export function OnlineDot({ online }: { online: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs">
-      <span className={clsx('size-2 rounded-full', online ? 'bg-success' : 'bg-subtle')} />
-      <span className={online ? 'text-success' : 'text-muted'}>{online ? 'Online' : 'Offline'}</span>
-    </span>
-  );
-}
